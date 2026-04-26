@@ -370,13 +370,16 @@ input { font-family: inherit; }
 .history-table tbody tr.row-light td { background: #161616; }
 .history-table tbody tr.row-dark  td { background: #121212; }
 
-/* Pierwszy wiersz dzisiejszy planowany — bez ramki, subtelne żółte tło */
+/* Pierwszy wiersz dzisiejszy planowany — wyraźne żółte tło */
 .history-table tbody tr.row-planned td {
-  background: rgba(251,191,36,0.10);
-  color: #f7e9c8;
+  background: rgba(251,191,36,0.22);
+  color: #fff7d1;
 }
 .history-table tbody tr.row-planned td.col-date,
-.history-table tbody tr.row-planned td.col-dow,
+.history-table tbody tr.row-planned td.col-dow {
+  color: #ffe47a;
+  font-weight: 700;
+}
 .history-table tbody tr.row-planned td.col-break,
 .history-table tbody tr.row-planned td.col-3m {
   color: #fff7d1;
@@ -384,7 +387,7 @@ input { font-family: inherit; }
 .history-table tbody tr.row-planned td.col-num,
 .history-table tbody tr.row-planned td.col-duration,
 .history-table tbody tr.row-planned td.col-br {
-  color: rgba(247,233,200,0.45);
+  color: rgba(255,240,180,0.55);
 }
 
 /* Wiersz dzisiejszy ukończony — świecąco zielony */
