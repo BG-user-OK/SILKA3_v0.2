@@ -5,7 +5,7 @@
 // ---------------------------------------------------------------
 // 0. WERSJA APLIKACJI
 // ---------------------------------------------------------------
-const APP_VERSION = '0.2.5';
+const APP_VERSION = '0.2.6';
 
 // ---------------------------------------------------------------
 // 1. STAŁE I NARZĘDZIA
@@ -792,18 +792,61 @@ function renderHomeFromDraft() {
   const orig = state.history;
   state.history = historyDraft;
   renderHome();
+
   document.querySelectorAll('#historyBody tr').forEach(tr => {
-    if (!tr.classList.contains('row-planned')) {
-      tr.classList.add('clickable-date');
-      tr.querySelector('td.col-date').addEventListener('click', () => openDatePicker(tr.dataset.date));
+    const date = tr.dataset.date;
+
+    // Data — klikalna we WSZYSTKICH wierszach (w tym planowanym)
+    const tdDate = tr.querySelector('td.col-date');
+    if (tdDate) {
+      tdDate.style.cursor = 'pointer';
+      tdDate.style.color = 'var(--yellow)';
+      tdDate.style.textDecoration = 'underline';
+      tdDate.addEventListener('click', () => openDatePicker(date, 'date'));
+    }
+
+    // Czas trwania — klikalny we wszystkich wierszach
+    const tdDur = tr.querySelector('td.col-duration');
+    if (tdDur) {
+      tdDur.style.cursor = 'pointer';
+      tdDur.style.color = 'var(--yellow)';
+      tdDur.style.textDecoration = 'underline';
+      tdDur.addEventListener('click', () => openDurationEditor(date));
     }
   });
+
   state.history = orig;
 }
 
-function openDatePicker(iso) {
+function openDurationEditor(iso) {
+  // Znajdź aktualny czas trwania w drafcie
+  const entry = historyDraft.find(h => h.date === iso);
+  const current = entry ? (entry.duration || '') : '';
+  const val = prompt(`Czas trwania dla ${fmtDateShort(iso)} (format hh:mm, np. 1:45):`, current);
+  if (val === null) return; // anulowano
+
+  const trimmed = val.trim();
+  // Walidacja prostego formatu h:mm lub hh:mm
+  if (trimmed && !/^\d{1,2}:\d{2}$/.test(trimmed)) {
+    showToast('Zły format — wpisz np. 1:45', 'err');
+    return;
+  }
+
+  if (entry) {
+    // Wpis istnieje w drafcie — aktualizuj
+    entry.duration = trimmed || null;
+    entry.exported = false;
+  } else {
+    // Wiersz planowany — dodaj nowy wpis do draftu
+    historyDraft.push({ date: iso, duration: trimmed || null, exported: false });
+  }
+  renderHomeFromDraft();
+  showToast('Czas zaktualizowany', 'ok');
+}
+
+function openDatePicker(iso, field) {
   const d = fromISODate(iso);
-  calendarState = { forDate: iso, viewYear: d.getFullYear(), viewMonth: d.getMonth() };
+  calendarState = { forDate: iso, field: field || 'date', viewYear: d.getFullYear(), viewMonth: d.getMonth() };
   renderCalendar();
   document.getElementById('modalDatePicker').hidden = false;
 }
@@ -846,14 +889,29 @@ function renderCalendar() {
 function chooseDate(newIso) {
   if (!historyDraft || !calendarState) return;
   const oldIso = calendarState.forDate;
-  const entry = historyDraft.find(h => h.date === oldIso);
-  if (!entry) return;
-  if (historyDraft.some(h => h !== entry && h.date === newIso)) {
-    showToast('Ta data już istnieje', 'err');
-    return;
+
+  // Sprawdź kolizję z istniejącym wpisem
+  const existing = historyDraft.find(h => h.date === newIso);
+
+  let entry = historyDraft.find(h => h.date === oldIso);
+
+  if (!entry) {
+    // Wiersz planowany (dzisiejszy) — tworzymy nowy wpis w drafcie
+    if (existing) {
+      showToast('Ta data już istnieje', 'err');
+      return;
+    }
+    historyDraft.push({ date: newIso, duration: null, exported: false });
+  } else {
+    // Istniejący wpis — zmień datę
+    if (existing && existing !== entry) {
+      showToast('Ta data już istnieje', 'err');
+      return;
+    }
+    entry.date = newIso;
+    entry.exported = false;
   }
-  entry.date = newIso;
-  entry.exported = false;  // zmiana daty → do ponownego eksportu
+
   document.getElementById('modalDatePicker').hidden = true;
   calendarState = null;
   renderHomeFromDraft();
