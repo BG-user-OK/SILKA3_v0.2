@@ -34,6 +34,7 @@
         <div class="history-toolbar">
           <h1 class="history-title">SIŁKA <span>3</span></h1>
           <span class="version-tag" id="versionTag">v0.0.0</span>
+          <button class="bag-indicator" id="bagIndicator" aria-label="Status pakowania" title="Kliknij aby zresetować pakowanie">🎒</button>
           <div class="edit-actions" id="editActions" hidden>
             <button class="edit-action cancel" id="btnCancelEdit" aria-label="Anuluj">✕</button>
             <button class="edit-action accept" id="btnAcceptEdit" aria-label="Zatwierdź">✓</button>
@@ -76,7 +77,24 @@
     </section>
 
     <!-- ============================== -->
-    <!-- EKRAN 1 — LISTA ĆWICZEŃ       -->
+    <!-- EKRAN PAKOWANIA                -->
+    <!-- ============================== -->
+    <section class="screen screen--pack" id="screen-pack">
+      <header class="pack-header">
+        <button class="pack-nav-btn pack-nav-btn--cancel" id="btnPackCancel" aria-label="Anuluj">✕</button>
+        <h2 class="pack-title">Spakuj się!</h2>
+        <button class="pack-nav-btn pack-nav-btn--accept" id="btnPackAccept" aria-label="Spakowane">✓</button>
+      </header>
+      <div class="pack-grid" id="packGrid">
+        <!-- generowane w JS -->
+      </div>
+      <div class="pack-progress" id="packProgress">0 / 11</div>
+      <div class="celebration" id="celebrationPack" hidden>
+        <div class="celebration__core"></div>
+        <div class="celebration__ring"></div>
+      </div>
+    </section>
+
     <!-- ============================== -->
     <section class="screen screen--list" id="screen-list">
       <header class="top-panel">

@@ -5,7 +5,22 @@
 // ---------------------------------------------------------------
 // 0. WERSJA APLIKACJI
 // ---------------------------------------------------------------
-const APP_VERSION = '0.2.8';
+const APP_VERSION = '0.2.9';
+
+// Lista rzeczy do spakowania
+const PACK_ITEMS = [
+  { id: 'batki',    emoji: '🩲', label: 'Batki'    },
+  { id: 'skarpy',   emoji: '🧦', label: 'Skarpetki'},
+  { id: 'spodenki', emoji: '🩳', label: 'Spodenki' },
+  { id: 'koszulka', emoji: '👕', label: 'Koszulka' },
+  { id: 'buty',     emoji: '👟', label: 'Buty'     },
+  { id: 'klapki',   emoji: '🩴', label: 'Klapki'   },
+  { id: 'reczniki', emoji: '🛁', label: '2 Ręczniki'},
+  { id: 'poduszka', emoji: '🧘', label: 'Poduszka' },
+  { id: 'woda',     emoji: '💧', label: 'Woda'     },
+  { id: 'izotonic', emoji: '⚡', label: 'Isotonic' },
+  { id: 'shake',    emoji: '🥤', label: 'Shake'    },
+];
 
 // ---------------------------------------------------------------
 // 1. STAŁE I NARZĘDZIA
@@ -190,7 +205,8 @@ function loadState() {
     version: STORAGE_VERSION,
     exercises: defaultExercises(),
     history: defaultHistory(),
-    current: null   // { startISO, startHM, startedAt, sets:{exId:n}, completedExercises:[ids w kolejności wykonania] }
+    current: null,
+    packingDate: null,  // ISO date — kiedy ostatnio potwierdzono pakowanie
   };
 }
 
@@ -259,9 +275,120 @@ function showScreen(id) {
 
 // ----- Ekran 0: tabela historii -----
 
+function isPackedToday() {
+  return state.packingDate === todayISO();
+}
+
+function updateBagIndicator() {
+  const btn = document.getElementById('bagIndicator');
+  if (isPackedToday()) {
+    btn.classList.remove('unpacked');
+    btn.classList.add('packed');
+    btn.title = 'Spakowane ✓ — kliknij aby zresetować';
+  } else {
+    btn.classList.remove('packed');
+    btn.classList.add('unpacked');
+    btn.title = 'Nie spakowane — START otworzy listę pakowania';
+  }
+}
+
+// Klik w ikonę torby — reset pakowania
+document.getElementById('bagIndicator').addEventListener('click', () => {
+  if (isPackedToday()) {
+    state.packingDate = null;
+    saveState();
+    updateBagIndicator();
+    showToast('Pakowanie zresetowane', 'ok');
+  }
+});
+
+// ----- Ekran pakowania -----
+
+let packChecked = new Set();
+
+function renderPackScreen() {
+  packChecked = new Set();
+  const grid = document.getElementById('packGrid');
+  grid.innerHTML = '';
+  PACK_ITEMS.forEach(item => {
+    const div = document.createElement('div');
+    div.className = 'pack-item';
+    div.dataset.id = item.id;
+    div.innerHTML = `
+      <span class="pack-item__emoji">${item.emoji}</span>
+      <span class="pack-item__label">${item.label}</span>
+    `;
+    div.addEventListener('click', () => togglePackItem(item.id));
+    grid.appendChild(div);
+  });
+  updatePackProgress();
+}
+
+function togglePackItem(id) {
+  if (packChecked.has(id)) {
+    packChecked.delete(id);
+  } else {
+    packChecked.add(id);
+  }
+  // Aktualizuj wygląd
+  document.querySelectorAll('.pack-item').forEach(el => {
+    if (packChecked.has(el.dataset.id)) {
+      el.classList.add('packed');
+    } else {
+      el.classList.remove('packed');
+    }
+  });
+  updatePackProgress();
+  // Wszystkie spakowane → animacja i zamknięcie
+  if (packChecked.size === PACK_ITEMS.length) {
+    confirmPacking(true);
+  }
+}
+
+function updatePackProgress() {
+  const el = document.getElementById('packProgress');
+  el.textContent = `${packChecked.size} / ${PACK_ITEMS.length}`;
+  el.className = 'pack-progress' + (packChecked.size === PACK_ITEMS.length ? ' done' : '');
+}
+
+function confirmPacking(withAnimation) {
+  state.packingDate = todayISO();
+  saveState();
+  updateBagIndicator();
+  if (withAnimation) {
+    // Supernowa na ekranie pakowania, potem home
+    const cel = document.getElementById('celebrationPack');
+    cel.hidden = false;
+    cel.style.animation = 'none';
+    cel.offsetHeight;
+    cel.style.animation = '';
+    setTimeout(() => {
+      cel.hidden = true;
+      renderHome();
+      showScreen('screen-home');
+    }, 1500);
+  } else {
+    renderHome();
+    showScreen('screen-home');
+  }
+}
+
+document.getElementById('btnPackAccept').addEventListener('click', () => {
+  confirmPacking(false);
+  showToast('Spakowane! Miłego treningu 💪', 'ok');
+});
+
+document.getElementById('btnPackCancel').addEventListener('click', () => {
+  // Wróć bez pakowania
+  showScreen('screen-home');
+});
+
+// ----- renderHome -----
+
 function renderHome() {
   // Wersja
   document.getElementById('versionTag').textContent = `v${APP_VERSION}`;
+  updateBagIndicator();
 
   const body = document.getElementById('historyBody');
   body.innerHTML = '';
@@ -1100,10 +1227,18 @@ function onStartRelease() {
   if (startHoldTriggered) return;
   btnStart.classList.add('clicked');
   setTimeout(() => btnStart.classList.remove('clicked'), 300);
-  renderExerciseList();
-  setButtonMode('green');
-  endRestCountdown();
-  showScreen('screen-list');
+
+  if (!isPackedToday()) {
+    // Nie spakowane → ekran pakowania
+    renderPackScreen();
+    showScreen('screen-pack');
+  } else {
+    // Spakowane → od razu do ćwiczeń
+    renderExerciseList();
+    setButtonMode('green');
+    endRestCountdown();
+    showScreen('screen-list');
+  }
 }
 
 function onStartCancel() {
