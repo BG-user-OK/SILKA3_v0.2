@@ -5,7 +5,7 @@
 // ---------------------------------------------------------------
 // 0. WERSJA APLIKACJI
 // ---------------------------------------------------------------
-const APP_VERSION = '0.2.1';
+const APP_VERSION = '0.2.2';
 
 // ---------------------------------------------------------------
 // 1. STAŁE I NARZĘDZIA
@@ -1002,15 +1002,17 @@ function showToast(msg, type) {
 const btnStart = document.getElementById('btnStart');
 let startHoldTimer = null;
 let startHoldTriggered = false;
+let startPressActive = false;  // czy wciśnięcie jest aktywne
 
 function startBtnPress() {
   if (btnStart.classList.contains('disabled')) return;
   startHoldTriggered = false;
+  startPressActive = true;
   btnStart.classList.add('holding');
   startHoldTimer = setTimeout(() => {
     startHoldTriggered = true;
     btnStart.classList.remove('holding');
-    // Pokaż dialog tylko jeśli jest co resetować
+    startPressActive = false;
     if (state.current?.startedAt) {
       showConfirm(
         'Zresetować trening?',
@@ -1025,29 +1027,40 @@ function startBtnPress() {
     }
   }, RESET_HOLD_MS);
 }
-function startBtnRelease(cancelled) {
+
+function startBtnRelease() {
+  if (!startPressActive) return;  // ignoruj jeśli press nie był aktywny
+  startPressActive = false;
   btnStart.classList.remove('holding');
   if (startHoldTimer) {
     clearTimeout(startHoldTimer);
     startHoldTimer = null;
   }
-  if (startHoldTriggered || cancelled) return;
-  // Krótki klik — wejdź do treningu (kontynuuj jeśli był w toku, nie resetuj!)
+  if (startHoldTriggered) return;
+  // Krótki klik — wejdź do listy ćwiczeń
   btnStart.classList.add('clicked');
   setTimeout(() => btnStart.classList.remove('clicked'), 300);
-
-  // Jeśli istnieje niedokończony trening → kontynuuj go
-  // Jeśli nie ma → po prostu wejdź na listę (timer zacznie się od kliku w pierwsze ćwiczenie)
   renderExerciseList();
   setButtonMode('green');
   endRestCountdown();
   showScreen('screen-list');
 }
 
+function startBtnCancel() {
+  // Anuluj TYLKO jeśli to rzeczywiście przerwanie (np. scroll) — nie przy normalnym tapnięciu
+  startPressActive = false;
+  btnStart.classList.remove('holding');
+  if (startHoldTimer) {
+    clearTimeout(startHoldTimer);
+    startHoldTimer = null;
+  }
+}
+
 btnStart.addEventListener('pointerdown', startBtnPress);
-btnStart.addEventListener('pointerup', () => startBtnRelease(false));
-btnStart.addEventListener('pointerleave', () => startBtnRelease(true));
-btnStart.addEventListener('pointercancel', () => startBtnRelease(true));
+btnStart.addEventListener('pointerup', startBtnRelease);
+// pointerleave NIE anuluje — na telefonie palec "wychodzi" z elementu podczas tapnięcia
+// anulujemy tylko przy pointercancel (np. scroll systemu)
+btnStart.addEventListener('pointercancel', startBtnCancel);
 
 // --- Tabela historii — edycja dat ---
 document.getElementById('btnEditHistory').addEventListener('click', enterHistoryEdit);
