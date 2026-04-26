@@ -5,7 +5,7 @@
 // ---------------------------------------------------------------
 // 0. WERSJA APLIKACJI
 // ---------------------------------------------------------------
-const APP_VERSION = '0.2.4';
+const APP_VERSION = '0.2.5';
 
 // ---------------------------------------------------------------
 // 1. STAŁE I NARZĘDZIA
@@ -520,8 +520,8 @@ function startTrainingTimer() {
     const totalMin = Math.floor(totalSec / 60);
     const h = Math.floor(totalMin / 60);
     const m = totalMin % 60;
-    // Bez sekund: m:mm gdy <60min, h:mm gdy >=1h, bez zera przed godziną
-    const text = h > 0 ? `${h}:${pad2(m)}` : `${m}:${pad2(0).slice(0,2)}`.replace(/^(\d+):00$/, '$1:00');
+    // Bez sekund: samo "M" gdy <60min, "H:MM" gdy >=1h, bez zera przed godziną
+    const text = h > 0 ? `${h}:${pad2(m)}` : `${totalMin}`;
     document.getElementById('trainingTimerList').textContent = text;
     document.getElementById('trainingTimerEx').textContent = text;
   };
