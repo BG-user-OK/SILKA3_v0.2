@@ -5,7 +5,7 @@
 // ---------------------------------------------------------------
 // 0. WERSJA APLIKACJI
 // ---------------------------------------------------------------
-const APP_VERSION = '0.2.3';
+const APP_VERSION = '0.2.4';
 
 // ---------------------------------------------------------------
 // 1. STAŁE I NARZĘDZIA
@@ -94,7 +94,7 @@ function defaultExercises() {
   return defs.map(e => ({
     id: e.id,
     name: e.name,
-    img: `images/${e.id}.jpg`,
+    img: `Photos/${e.id}.jpg`,
     helperImages: [],
     sets: e.sets,
     reps: e.reps,
