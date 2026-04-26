@@ -5,7 +5,7 @@
 // ---------------------------------------------------------------
 // 0. WERSJA APLIKACJI
 // ---------------------------------------------------------------
-const APP_VERSION = '0.2.6';
+const APP_VERSION = '0.2.7';
 
 // ---------------------------------------------------------------
 // 1. STAŁE I NARZĘDZIA
@@ -323,17 +323,31 @@ function renderHome() {
       breakText = String(daysBetween(nextOlder.date, h.date));
     }
 
-    const a3 = fmtAvg(avg3M(h.date, historyPlusToday));
-    const aB = fmtAvg(avgBR(h.date, historyPlusToday));
+    const a3raw = avg3M(h.date, historyPlusToday);
+    const aBraw = avgBR(h.date, historyPlusToday);
+    const a3 = fmtAvg(a3raw);
+    const aB = fmtAvg(aBraw);
+
+    // Kolorowanie warunkowe
+    // Przerwa: ≤4 dni = zielono, >4 = czerwono
+    const breakVal = nextOlder ? daysBetween(nextOlder.date, h.date) : null;
+    const breakColor = breakVal === null ? '' :
+      breakVal <= 4 ? 'color:var(--green-glow)' : 'color:var(--red-glow)';
+
+    // Średnie: ≤3.5 = zielono (cel osiągnięty), >3.5 = czerwono
+    const a3Color = a3raw === null ? '' :
+      a3raw <= 3.5 ? 'color:var(--green-glow)' : 'color:var(--red-glow)';
+    const aBColor = aBraw === null ? '' :
+      aBraw <= 3.5 ? 'color:var(--green-glow)' : 'color:var(--red-glow)';
 
     tr.innerHTML = `
       <td class="col-num">${num}</td>
       <td class="col-date">${dateText}</td>
       <td class="col-dow">${dowText}</td>
       <td class="col-duration">${durText}</td>
-      <td class="col-break">${breakText}</td>
-      <td class="col-3m">${a3}</td>
-      <td class="col-br">${aB}</td>
+      <td class="col-break" style="${breakColor}">${breakText}</td>
+      <td class="col-3m"    style="${a3Color}">${a3}</td>
+      <td class="col-br"    style="${aBColor}">${aB}</td>
     `;
     body.appendChild(tr);
   });
