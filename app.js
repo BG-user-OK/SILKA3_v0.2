@@ -5,7 +5,7 @@
 // ---------------------------------------------------------------
 // 0. WERSJA APLIKACJI
 // ---------------------------------------------------------------
-const APP_VERSION = '0.2.2';
+const APP_VERSION = '0.2.3';
 
 // ---------------------------------------------------------------
 // 1. STAŁE I NARZĘDZIA
@@ -998,29 +998,23 @@ function showToast(msg, type) {
 // 11. PODPINANIE ZDARZEŃ
 // ---------------------------------------------------------------
 
-// --- START z obsługą "krótki klik / przytrzymanie 2 s" ---
+// --- START: krótki dotyk = wejście, przytrzymanie 2s = reset ---
 const btnStart = document.getElementById('btnStart');
 let startHoldTimer = null;
 let startHoldTriggered = false;
-let startPressActive = false;  // czy wciśnięcie jest aktywne
 
-function startBtnPress() {
+function onStartPress() {
   if (btnStart.classList.contains('disabled')) return;
   startHoldTriggered = false;
-  startPressActive = true;
   btnStart.classList.add('holding');
   startHoldTimer = setTimeout(() => {
     startHoldTriggered = true;
     btnStart.classList.remove('holding');
-    startPressActive = false;
     if (state.current?.startedAt) {
       showConfirm(
         'Zresetować trening?',
         'Bieżący niedokończony trening zostanie wykasowany. Historia treningów pozostanie nienaruszona.',
-        () => {
-          resetCurrentTraining();
-          showToast('Trening zresetowany', 'ok');
-        }
+        () => { resetCurrentTraining(); showToast('Trening zresetowany', 'ok'); }
       );
     } else {
       showToast('Brak aktywnego treningu', 'ok');
@@ -1028,16 +1022,10 @@ function startBtnPress() {
   }, RESET_HOLD_MS);
 }
 
-function startBtnRelease() {
-  if (!startPressActive) return;  // ignoruj jeśli press nie był aktywny
-  startPressActive = false;
+function onStartRelease() {
   btnStart.classList.remove('holding');
-  if (startHoldTimer) {
-    clearTimeout(startHoldTimer);
-    startHoldTimer = null;
-  }
+  if (startHoldTimer) { clearTimeout(startHoldTimer); startHoldTimer = null; }
   if (startHoldTriggered) return;
-  // Krótki klik — wejdź do listy ćwiczeń
   btnStart.classList.add('clicked');
   setTimeout(() => btnStart.classList.remove('clicked'), 300);
   renderExerciseList();
@@ -1046,21 +1034,20 @@ function startBtnRelease() {
   showScreen('screen-list');
 }
 
-function startBtnCancel() {
-  // Anuluj TYLKO jeśli to rzeczywiście przerwanie (np. scroll) — nie przy normalnym tapnięciu
-  startPressActive = false;
+function onStartCancel() {
   btnStart.classList.remove('holding');
-  if (startHoldTimer) {
-    clearTimeout(startHoldTimer);
-    startHoldTimer = null;
-  }
+  if (startHoldTimer) { clearTimeout(startHoldTimer); startHoldTimer = null; }
 }
 
-btnStart.addEventListener('pointerdown', startBtnPress);
-btnStart.addEventListener('pointerup', startBtnRelease);
-// pointerleave NIE anuluje — na telefonie palec "wychodzi" z elementu podczas tapnięcia
-// anulujemy tylko przy pointercancel (np. scroll systemu)
-btnStart.addEventListener('pointercancel', startBtnCancel);
+// Touch (telefon) — e.preventDefault() blokuje ghost-click i eliminuje problemy z pointerleave
+btnStart.addEventListener('touchstart',  (e) => { e.preventDefault(); onStartPress();   }, { passive: false });
+btnStart.addEventListener('touchend',    (e) => { e.preventDefault(); onStartRelease(); }, { passive: false });
+btnStart.addEventListener('touchcancel', (e) => { e.preventDefault(); onStartCancel();  }, { passive: false });
+
+// Mouse (desktop / fallback)
+btnStart.addEventListener('mousedown',  onStartPress);
+btnStart.addEventListener('mouseup',    onStartRelease);
+btnStart.addEventListener('mouseleave', onStartCancel);
 
 // --- Tabela historii — edycja dat ---
 document.getElementById('btnEditHistory').addEventListener('click', enterHistoryEdit);
