@@ -981,30 +981,42 @@ input { font-family: inherit; }
   background: linear-gradient(180deg, #3a3a3a 0%, #2c2c2c 100%);
   border-color: var(--yellow);
   box-shadow: 0 0 16px rgba(251,191,36,0.35);
+  grid-template-columns: 64px 1fr auto;
 }
+.reorder-ok {
+  width: 64px;
+  height: 64px;
+  border-radius: 12px;
+  background: var(--green);
+  color: #000;
+  font-size: 30px;
+  font-weight: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 100ms;
+  box-shadow: 0 0 14px rgba(34,197,94,0.45);
+}
+.reorder-ok:active { transform: scale(0.92); }
 .reorder-controls {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
 }
 .reorder-btn {
-  width: 36px;
-  height: 28px;
-  border-radius: 8px;
-  background: rgba(255,255,255,0.10);
+  width: 50px;
+  height: 36px;
+  border-radius: 10px;
+  background: rgba(255,255,255,0.12);
   color: var(--text);
-  font-size: 14px;
+  font-size: 20px;
   font-weight: 700;
   display: flex;
   align-items: center;
   justify-content: center;
   transition: transform 100ms, background 150ms;
 }
-.reorder-btn:active { transform: scale(0.9); background: rgba(255,255,255,0.2); }
-.reorder-btn--ok {
-  background: var(--green);
-  color: #000;
-}
+.reorder-btn:active { transform: scale(0.9); background: rgba(255,255,255,0.22); }
 
 /* Wykonane / nieaktywne — przygaszone */
 .exercise-item.done,

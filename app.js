@@ -5,7 +5,7 @@
 // ---------------------------------------------------------------
 // 0. WERSJA APLIKACJI
 // ---------------------------------------------------------------
-const APP_VERSION = '0.4.1';
+const APP_VERSION = '0.4.2';
 
 // Lista rzeczy do spakowania
 const PACK_ITEMS = [
@@ -219,8 +219,42 @@ function saveState() {
 }
 
 // ---------------------------------------------------------------
+// Wake Lock — utrzymuje ekran włączony w trakcie treningu
+// ---------------------------------------------------------------
+let wakeLock = null;
+async function acquireWakeLock() {
+  if (!('wakeLock' in navigator)) return;
+  try {
+    wakeLock = await navigator.wakeLock.request('screen');
+    wakeLock.addEventListener('release', () => { wakeLock = null; });
+  } catch (e) {
+    console.warn('[WakeLock] nie udało się:', e.message);
+  }
+}
+function releaseWakeLock() {
+  if (wakeLock) {
+    wakeLock.release().catch(() => {});
+    wakeLock = null;
+  }
+}
+// Re-acquire po powrocie do apki (gdy wybrano inną aplikację i wrócono)
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && state.current?.startedAt) {
+    acquireWakeLock();
+  }
+});
+
+function vibratePhone(pattern) {
+  if ('vibrate' in navigator) {
+    try { navigator.vibrate(pattern); } catch (e) { /* ignore */ }
+  }
+}
+
+// ---------------------------------------------------------------
 // 4. FUNKCJE POMOCNICZE HISTORII
 // ---------------------------------------------------------------
+
+
 
 function sortedHistoryDesc() {
   return [...state.history].sort((a,b) => b.date.localeCompare(a.date));
@@ -614,18 +648,15 @@ function renderExerciseList() {
     if (reorderingExId === ex.id) {
       // Tryb przestawiania — pokaż strzałki ↑↓ + ✓ (gotowe)
       li.innerHTML = `
-        <div class="exercise-item__thumb">
-          <img src="${ex.img}" alt="" onerror="this.replaceWith(Object.assign(document.createElement('span'),{textContent:'${ex.id}'}))">
-        </div>
+        <button class="reorder-ok" data-dir="ok" aria-label="Gotowe">✓</button>
         <div class="exercise-item__name">${ex.name}</div>
         <div class="reorder-controls">
           <button class="reorder-btn" data-dir="up" aria-label="W górę">▲</button>
-          <button class="reorder-btn reorder-btn--ok" data-dir="ok" aria-label="Gotowe">✓</button>
           <button class="reorder-btn" data-dir="down" aria-label="W dół">▼</button>
         </div>
       `;
       list.appendChild(li);
-      li.querySelectorAll('.reorder-btn').forEach(btn => {
+      li.querySelectorAll('button[data-dir]').forEach(btn => {
         btn.addEventListener('click', e => {
           e.stopPropagation();
           const dir = btn.dataset.dir;
@@ -771,6 +802,7 @@ let trainingTimerInterval = null;
 function startTrainingTimer() {
   document.getElementById('trainingClockList').hidden = false;
   document.getElementById('trainingClockEx').hidden = false;
+  acquireWakeLock();  // utrzymaj ekran włączony
   if (trainingTimerInterval) clearInterval(trainingTimerInterval);
   const tick = () => {
     if (!state.current?.startedAt) return;
@@ -792,13 +824,16 @@ function stopTrainingTimer() {
   trainingTimerInterval = null;
   document.getElementById('trainingClockList').hidden = true;
   document.getElementById('trainingClockEx').hidden = true;
+  releaseWakeLock();
 }
 function resetCurrentTraining() {
   state.current = null;
+  state.packingDate = null;  // reset też pakowanie (testowanie / czyszczenie)
   stopTrainingTimer();
   endRestCountdown();
   setButtonMode('green');
   saveState();
+  updateBagIndicator();
 }
 
 // --- Licznik przerwy ---
@@ -852,6 +887,8 @@ function finishRestCountdown() {
   // Ukryj overlay odliczania
   document.getElementById('restOverlay').hidden = true;
   setButtonMode('green');
+  // Wibracja — wzór: 200ms wibracja, 100ms przerwa, 200ms wibracja, 100ms, 200ms
+  vibratePhone([200, 100, 200, 100, 200]);
   // Migający zielony — do 10 s lub klik
   const flash = document.getElementById('restDoneOverlay');
   flash.hidden = false;
@@ -1030,8 +1067,14 @@ async function finishTraining() {
 
 function showCelebration(cb) {
   const cel = document.getElementById('celebration');
-  const active = document.querySelector('.screen.active');
-  if (active && cel.parentElement !== active) active.appendChild(cel);
+  // Przeklejamy do body żeby celebration nie zniknęło przy renderowaniu ekranu
+  if (cel.parentElement !== document.body) {
+    document.body.appendChild(cel);
+  }
+  // Wymuś style — fixed na całym viewport
+  cel.style.position = 'fixed';
+  cel.style.inset = '0';
+  cel.style.zIndex = '9999';
   cel.hidden = false;
   // restart animacji
   cel.style.animation = 'none';
