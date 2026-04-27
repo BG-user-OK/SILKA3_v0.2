@@ -1018,13 +1018,27 @@ input { font-family: inherit; }
 }
 .reorder-btn:active { transform: scale(0.9); background: rgba(255,255,255,0.22); }
 
-/* Wykonane / nieaktywne — przygaszone */
-.exercise-item.done,
+/* Wykonane — pełna jasność kul, wyciemniona reszta dla rozróżnienia od aktywnych */
+.exercise-item.done {
+  filter: brightness(0.65);
+}
+.exercise-item.done .exercise-item__sets {
+  filter: none;  /* kule pełna jasność */
+}
+.exercise-item.done .ball.filled,
+.exercise-item.done .ball-lg.filled {
+  filter: brightness(1.4);  /* jaszcze jaśniejsze niż norma */
+}
+.exercise-item.done .exercise-item__name {
+  text-decoration: line-through;
+  opacity: 0.6;
+}
+
+/* Trwale nieaktywne — bardzo wyciemnione */
 .exercise-item.inactive-permanent {
   opacity: 0.32;
-  filter: grayscale(0.7) brightness(0.75);
+  filter: grayscale(0.7) brightness(0.7);
 }
-.exercise-item.done .exercise-item__name { text-decoration: line-through; }
 
 /* ==========================================================
    EKRAN 2 — WYKONANIE ĆWICZENIA
@@ -1193,6 +1207,8 @@ input { font-family: inherit; }
 }
 
 /* ==========================================================
+   ANIMACJA — SUPERNOWA
+   ========================================================== */
 .celebration {
   position: absolute;
   inset: 0;

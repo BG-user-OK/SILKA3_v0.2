@@ -5,7 +5,7 @@
 // ---------------------------------------------------------------
 // 0. WERSJA APLIKACJI
 // ---------------------------------------------------------------
-const APP_VERSION = '0.4.2';
+const APP_VERSION = '0.4.3';
 
 // Lista rzeczy do spakowania
 const PACK_ITEMS = [
@@ -657,12 +657,19 @@ function renderExerciseList() {
       `;
       list.appendChild(li);
       li.querySelectorAll('button[data-dir]').forEach(btn => {
-        btn.addEventListener('click', e => {
+        const handler = (e) => {
           e.stopPropagation();
+          e.preventDefault();
           const dir = btn.dataset.dir;
           if (dir === 'up') moveExercise(ex.id, -1);
           else if (dir === 'down') moveExercise(ex.id, +1);
           else exitReorderMode();
+        };
+        // touchstart natychmiastowy, click jako fallback dla myszy
+        btn.addEventListener('touchstart', handler, { passive: false });
+        btn.addEventListener('click', (e) => {
+          // tylko desktop / mysz
+          if (e.detail > 0) handler(e);
         });
       });
       return;
@@ -857,6 +864,8 @@ function setButtonMode(mode) {
 function startRestCountdown() {
   restRemaining = REST_SECONDS;
   setButtonMode('rest');
+  // Krótka wibracja jako "registration" user gesture dla późniejszej wibracji
+  vibratePhone(50);
   // Pokaż overlay wygaszony
   const overlay = document.getElementById('restOverlay');
   const secEl = document.getElementById('restOverlaySec');
@@ -887,8 +896,8 @@ function finishRestCountdown() {
   // Ukryj overlay odliczania
   document.getElementById('restOverlay').hidden = true;
   setButtonMode('green');
-  // Wibracja — wzór: 200ms wibracja, 100ms przerwa, 200ms wibracja, 100ms, 200ms
-  vibratePhone([200, 100, 200, 100, 200]);
+  // Wibracja — wzór dłuższy: 3 silne pulsy
+  vibratePhone([400, 150, 400, 150, 600]);
   // Migający zielony — do 10 s lub klik
   const flash = document.getElementById('restDoneOverlay');
   flash.hidden = false;
@@ -1582,8 +1591,9 @@ exerciseListEl.addEventListener('click', e => {
 
 // Long-press na thumbie → toggle aktywności
 function setupLongPressForThumb(thumbEl, exId) {
-  const startPress = () => {
+  const startPress = (ev) => {
     listLongPressTriggered = false;
+    if (listLongPressTimer) clearTimeout(listLongPressTimer);
     listLongPressTimer = setTimeout(() => {
       listLongPressTriggered = true;
       toggleExerciseActive(exId);
@@ -1592,19 +1602,20 @@ function setupLongPressForThumb(thumbEl, exId) {
   const cancelPress = () => {
     if (listLongPressTimer) { clearTimeout(listLongPressTimer); listLongPressTimer = null; }
   };
-  thumbEl.addEventListener('touchstart',  (e) => { e.preventDefault(); startPress(); }, { passive: false });
+  thumbEl.addEventListener('touchstart',  startPress, { passive: true });
   thumbEl.addEventListener('touchend',    cancelPress);
   thumbEl.addEventListener('touchcancel', cancelPress);
+  thumbEl.addEventListener('touchmove',   cancelPress);  // scroll = anuluj
   thumbEl.addEventListener('mousedown',   startPress);
   thumbEl.addEventListener('mouseup',     cancelPress);
   thumbEl.addEventListener('mouseleave',  cancelPress);
 }
 
-// Long-press na prawej części (nazwa+kule) → tryb reorderowania
 function setupLongPressForReorder(rightAreaEl, exId) {
   let pressTimer = null;
   const startPress = () => {
     listLongPressTriggered = false;
+    if (pressTimer) clearTimeout(pressTimer);
     pressTimer = setTimeout(() => {
       listLongPressTriggered = true;
       enterReorderMode(exId);
@@ -1613,9 +1624,10 @@ function setupLongPressForReorder(rightAreaEl, exId) {
   const cancelPress = () => {
     if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; }
   };
-  rightAreaEl.addEventListener('touchstart',  (e) => { startPress(); }, { passive: true });
+  rightAreaEl.addEventListener('touchstart',  startPress, { passive: true });
   rightAreaEl.addEventListener('touchend',    cancelPress);
   rightAreaEl.addEventListener('touchcancel', cancelPress);
+  rightAreaEl.addEventListener('touchmove',   cancelPress);  // scroll = anuluj
   rightAreaEl.addEventListener('mousedown',   startPress);
   rightAreaEl.addEventListener('mouseup',     cancelPress);
   rightAreaEl.addEventListener('mouseleave',  cancelPress);
