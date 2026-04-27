@@ -31,6 +31,9 @@
   --yellow-glow: #ffe066;
   --yellow-dark: #6b4e00;
 
+  --orange: #ff8c3a;
+  --orange-dark: #c4521a;
+
   --text: #f3f4f6;
   --text-dim: #a1a1aa;
   --text-dimmer: #6b7280;
@@ -111,6 +114,25 @@ input { font-family: inherit; }
   flex: 0 0 25%;
   display: flex;
   padding: 18px 16px 10px;
+  position: relative;
+}
+
+.home-finish-img {
+  flex: 1;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  border: 2px solid var(--green-dark);
+  background: #0a0a0a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 24px rgba(57,255,124,0.18);
+}
+.home-finish-img img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 
 /* MEGA START — jeden duży przycisk na całą górną sekcję */
@@ -312,6 +334,11 @@ input { font-family: inherit; }
   opacity: 1;
   background: rgba(251,191,36,0.18);
   color: var(--yellow);
+}
+.th-btn--goal {
+  background: rgba(251,191,36,0.18);
+  color: var(--yellow);
+  opacity: 0.95;
 }
 
 /* Komórki danych */
@@ -623,7 +650,7 @@ input { font-family: inherit; }
 
 /* Ikona torby w toolbarze */
 .bag-indicator {
-  font-size: 22px;
+  font-size: 24px;
   line-height: 1;
   background: none;
   border: none;
@@ -631,12 +658,9 @@ input { font-family: inherit; }
   padding: 2px 4px;
   border-radius: 8px;
   transition: transform 150ms;
-  filter: grayscale(0);
   margin-left: auto;
 }
 .bag-indicator:active { transform: scale(0.88); }
-.bag-indicator.packed   { filter: hue-rotate(0deg)   brightness(1.2); }  /* zielona */
-.bag-indicator.unpacked { filter: hue-rotate(300deg) brightness(1.0) saturate(2); } /* czerwona */
 
 /* ==========================================================
    EKRAN PAKOWANIA
@@ -820,10 +844,55 @@ input { font-family: inherit; }
   color: var(--text);
   min-width: 52px;
   text-align: right;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
 }
 .exercise-item__sets small {
   color: var(--text-dimmer);
   font-size: 14px;
+}
+
+/* Hantelki — stan serii */
+.sets-dots {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  justify-content: flex-end;
+  max-width: 96px;
+}
+.dumbbell {
+  width: 22px;
+  height: 11px;
+}
+.dumbbell.empty rect {
+  fill: #3a3a3a;
+}
+.dumbbell.filled rect {
+  fill: var(--green-glow);
+  filter: drop-shadow(0 0 4px rgba(57,255,124,0.5));
+}
+.sets-fallback {
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 900;
+}
+
+/* Hantelki większe — ekran 2 */
+.sets-dots-large {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: center;
+  max-width: 100%;
+}
+.dumbbell-lg {
+  width: 28px;
+  height: 14px;
+}
+.dumbbell-lg.empty rect  { fill: #3a3a3a; }
+.dumbbell-lg.filled rect {
+  fill: var(--green-glow);
+  filter: drop-shadow(0 0 5px rgba(57,255,124,0.6));
 }
 
 /* Wykonane / nieaktywne — przygaszone */
@@ -958,8 +1027,49 @@ input { font-family: inherit; }
 .helper-images:empty { display: none; }
 
 /* ==========================================================
-   ANIMACJA — ROZBŁYSK SUPERNOWA (krótka, bez tekstu)
+   OVERLAY ODLICZANIA PRZERWY
    ========================================================== */
+.rest-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  background: rgba(0,0,0,0.94);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  animation: restOverlayIn 200ms ease-out;
+}
+@keyframes restOverlayIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.rest-overlay__seconds {
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 900;
+  font-size: clamp(120px, 50vw, 280px);
+  line-height: 1;
+  color: rgba(220,220,230,0.45);
+  text-shadow: 0 0 40px rgba(255,255,255,0.06);
+  letter-spacing: -0.02em;
+  user-select: none;
+}
+
+/* Migający zielony po zakończeniu odliczania */
+.rest-done-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 45;
+  background: #00ff5e;
+  cursor: pointer;
+  animation: restDoneFlash 0.6s ease-in-out infinite alternate;
+}
+@keyframes restDoneFlash {
+  from { opacity: 0.4; }
+  to   { opacity: 0.95; }
+}
+
+/* ==========================================================
 .celebration {
   position: absolute;
   inset: 0;

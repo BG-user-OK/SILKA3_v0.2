@@ -28,6 +28,9 @@
           <span class="home-btn-mega__icon">💪</span>
           <span class="home-btn-mega__label">START</span>
         </button>
+        <div class="home-finish-img" id="homeFinishImg" hidden>
+          <img src="Photos/fotokoniec.jpg" alt="Trening zakończony" />
+        </div>
       </header>
 
       <div class="history-wrap">
@@ -55,7 +58,12 @@
                 <th class="col-dow" title="Dzień tygodnia">🗓️</th>
                 <th class="col-duration" title="Czas trwania">⏱️</th>
                 <th class="col-break" title="Dni od ostatniego treningu">🔁</th>
-                <th class="col-3m" title="Średnia z 3 miesięcy">3M</th>
+                <th class="col-3m" title="Średnia z 3 miesięcy">
+                  <span class="th-content">
+                    3M
+                    <button class="th-btn th-btn--goal" id="btnEditGoal" aria-label="Edytuj cel" hidden>✏️</button>
+                  </span>
+                </th>
                 <th class="col-br" title="Średnia w bieżącym roku">
                   <span class="th-content">
                     BR
@@ -179,6 +187,14 @@
         <div class="celebration__core"></div>
         <div class="celebration__ring"></div>
       </div>
+
+      <!-- Overlay odliczania przerwy — wygaszony ekran z dużymi sekundami -->
+      <div class="rest-overlay" id="restOverlay" hidden>
+        <span class="rest-overlay__seconds" id="restOverlaySec">60</span>
+      </div>
+
+      <!-- Overlay migający zielony po zakończeniu odliczania -->
+      <div class="rest-done-overlay" id="restDoneOverlay" hidden></div>
     </section>
 
     <!-- ============================== -->

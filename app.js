@@ -5,7 +5,7 @@
 // ---------------------------------------------------------------
 // 0. WERSJA APLIKACJI
 // ---------------------------------------------------------------
-const APP_VERSION = '0.2.9';
+const APP_VERSION = '0.4.0';
 
 // Lista rzeczy do spakowania
 const PACK_ITEMS = [
@@ -182,6 +182,9 @@ function loadState() {
         if (s.current && !s.current.completedExercises) {
           s.current.completedExercises = [];
         }
+        // Migracja brakujących pól (dodawanych w nowszych wersjach)
+        if (s.packingDate === undefined) s.packingDate = null;
+        if (s.goalDays === undefined || s.goalDays === null) s.goalDays = 3.5;
         return s;
       }
     }
@@ -207,6 +210,7 @@ function loadState() {
     history: defaultHistory(),
     current: null,
     packingDate: null,  // ISO date — kiedy ostatnio potwierdzono pakowanie
+    goalDays: 3.5,      // cel: co ile dni trening (próg dla kolorów)
   };
 }
 
@@ -282,12 +286,10 @@ function isPackedToday() {
 function updateBagIndicator() {
   const btn = document.getElementById('bagIndicator');
   if (isPackedToday()) {
-    btn.classList.remove('unpacked');
-    btn.classList.add('packed');
+    btn.textContent = '✅';
     btn.title = 'Spakowane ✓ — kliknij aby zresetować';
   } else {
-    btn.classList.remove('packed');
-    btn.classList.add('unpacked');
+    btn.textContent = '🔴';
     btn.title = 'Nie spakowane — START otworzy listę pakowania';
   }
 }
@@ -390,6 +392,19 @@ function renderHome() {
   document.getElementById('versionTag').textContent = `v${APP_VERSION}`;
   updateBagIndicator();
 
+  // Punkt 25 — obrazek fotokoniec.jpg gdy dziś już jest trening
+  const todayStr = todayISO();
+  const todayDoneEntry = state.history.some(h => h.date === todayStr);
+  const btnStartEl = document.getElementById('btnStart');
+  const finishImgEl = document.getElementById('homeFinishImg');
+  if (todayDoneEntry) {
+    btnStartEl.hidden = true;
+    finishImgEl.hidden = false;
+  } else {
+    btnStartEl.hidden = false;
+    finishImgEl.hidden = true;
+  }
+
   const body = document.getElementById('historyBody');
   body.innerHTML = '';
 
@@ -455,17 +470,33 @@ function renderHome() {
     const a3 = fmtAvg(a3raw);
     const aB = fmtAvg(aBraw);
 
+    // Próg z celu treningowego
+    const goal = state.goalDays || 3.5;
+
     // Kolorowanie warunkowe
-    // Przerwa: ≤4 dni = zielono, >4 = czerwono
+    // Przerwa: ≤cel*1.15 = zielono, >cel*1.15 = czerwono (lekka tolerancja)
     const breakVal = nextOlder ? daysBetween(nextOlder.date, h.date) : null;
     const breakColor = breakVal === null ? '' :
-      breakVal <= 4 ? 'color:var(--green-glow)' : 'color:var(--red-glow)';
+      breakVal <= Math.ceil(goal + 0.5) ? 'color:var(--green-glow)' : 'color:var(--red-glow)';
 
-    // Średnie: ≤3.5 = zielono (cel osiągnięty), >3.5 = czerwono
-    const a3Color = a3raw === null ? '' :
-      a3raw <= 3.5 ? 'color:var(--green-glow)' : 'color:var(--red-glow)';
-    const aBColor = aBraw === null ? '' :
-      aBraw <= 3.5 ? 'color:var(--green-glow)' : 'color:var(--red-glow)';
+    // Helper — kolor dla średniej z uwzględnieniem poprzedniego (starszego) wiersza
+    function avgColor(currentVal, getPrevVal) {
+      if (currentVal === null) return '';
+      if (currentVal <= goal) return 'color:var(--green-glow)';
+      // > celu — sprawdź czy się poprawia względem POPRZEDNIEGO (starszego) treningu
+      const prevVal = getPrevVal();
+      if (prevVal !== null && currentVal < prevVal) {
+        return 'color:var(--orange)';  // pomarańczowy — poprawia się
+      }
+      return 'color:var(--red-glow)';
+    }
+
+    // Funkcje pobierania średnich z poprzedniego (starszego) wiersza
+    const getPrevA3 = () => nextOlder ? avg3M(nextOlder.date, historyPlusToday) : null;
+    const getPrevAB = () => nextOlder ? avgBR(nextOlder.date, historyPlusToday) : null;
+
+    const a3Color = avgColor(a3raw, getPrevA3);
+    const aBColor = avgColor(aBraw, getPrevAB);
 
     tr.innerHTML = `
       <td class="col-num">${num}</td>
@@ -497,6 +528,43 @@ function isExerciseDone(ex) {
   if (!ex.active) return false;
   const d = state.current?.sets?.[ex.id] || 0;
   return d >= ex.sets;
+}
+
+function renderSetDots(done, total) {
+  if (total > 6) {
+    return `<span class="sets-fallback"><span>${done}</span><small>/${total}</small></span>`;
+  }
+  let html = '<span class="sets-dots">';
+  for (let i = 0; i < total; i++) {
+    const filled = i < done;
+    html += `
+      <svg class="dumbbell ${filled ? 'filled' : 'empty'}" viewBox="0 0 24 12" aria-hidden="true">
+        <rect x="2"  y="3" width="3" height="6" rx="1"/>
+        <rect x="5"  y="5" width="14" height="2"/>
+        <rect x="19" y="3" width="3" height="6" rx="1"/>
+      </svg>`;
+  }
+  html += '</span>';
+  return html;
+}
+
+function renderSetDotsLarge(done, total) {
+  // Wersja duża dla ekranu 2 — dwie linie dla > 4 serii
+  if (total > 8) {
+    return `<span class="sets-fallback"><span>${done}</span><small>/${total}</small></span>`;
+  }
+  let html = '<span class="sets-dots-large">';
+  for (let i = 0; i < total; i++) {
+    const filled = i < done;
+    html += `
+      <svg class="dumbbell-lg ${filled ? 'filled' : 'empty'}" viewBox="0 0 24 12" aria-hidden="true">
+        <rect x="2"  y="3" width="3" height="6" rx="1"/>
+        <rect x="5"  y="5" width="14" height="2"/>
+        <rect x="19" y="3" width="3" height="6" rx="1"/>
+      </svg>`;
+  }
+  html += '</span>';
+  return html;
 }
 
 function renderExerciseList() {
@@ -547,10 +615,13 @@ function renderExerciseList() {
       </div>
       <div class="exercise-item__name">${ex.name}</div>
       <div class="exercise-item__sets">
-        <span>${done}</span><small>/${ex.sets}</small>
+        ${renderSetDots(done, ex.sets)}
       </div>
     `;
     list.appendChild(li);
+    // Long-press na thumbie → toggle aktywności
+    const thumb = li.querySelector('.exercise-item__thumb');
+    if (thumb) setupLongPressForThumb(thumb, ex.id);
   };
 
   top.forEach(ex => renderItem(ex, 'top'));
@@ -598,7 +669,7 @@ function renderExerciseScreen(exId) {
   params.innerHTML = `
     <div class="param sets">
       <span class="param__label">Serie</span>
-      <span class="param__value">${done}/${ex.sets}</span>
+      <span class="param__value">${renderSetDotsLarge(done, ex.sets)}</span>
     </div>
     <div class="param reps">
       <span class="param__label">${ex.isTime ? 'Czas' : 'Powt.'}</span>
@@ -614,6 +685,9 @@ function renderExerciseScreen(exId) {
     im.src = src; im.alt = '';
     helpers.appendChild(im);
   });
+
+  // Long-press na głównym obrazku → toggle aktywności
+  setupLongPressForThumb(img.parentElement, ex.id);
 
   updateTopPanels();
 }
@@ -704,23 +778,62 @@ function setButtonMode(mode) {
 function startRestCountdown() {
   restRemaining = REST_SECONDS;
   setButtonMode('rest');
+  // Pokaż overlay wygaszony
+  const overlay = document.getElementById('restOverlay');
+  const secEl = document.getElementById('restOverlaySec');
+  secEl.textContent = restRemaining;
+  overlay.hidden = false;
+  // Klik w overlay — skraca przerwę
+  overlay.onclick = () => skipRest();
+
   updateRestUI();
   if (restInterval) clearInterval(restInterval);
   restInterval = setInterval(() => {
     restRemaining -= 1;
     updateRestUI();
-    if (restRemaining <= 0) endRestCountdown();
+    if (restRemaining <= 0) {
+      finishRestCountdown();
+    }
   }, 1000);
 }
 function updateRestUI() {
   document.getElementById('restTimerValue2').textContent = restRemaining;
+  document.getElementById('restOverlaySec').textContent = restRemaining;
 }
-function endRestCountdown() {
+
+let restDoneTimer = null;
+function finishRestCountdown() {
   if (restInterval) clearInterval(restInterval);
   restInterval = null;
+  // Ukryj overlay odliczania
+  document.getElementById('restOverlay').hidden = true;
+  setButtonMode('green');
+  // Migający zielony — do 10 s lub klik
+  const flash = document.getElementById('restDoneOverlay');
+  flash.hidden = false;
+  flash.onclick = () => endRestDone();
+  if (restDoneTimer) clearTimeout(restDoneTimer);
+  restDoneTimer = setTimeout(endRestDone, 10000);
+}
+function endRestDone() {
+  if (restDoneTimer) { clearTimeout(restDoneTimer); restDoneTimer = null; }
+  document.getElementById('restDoneOverlay').hidden = true;
+}
+function endRestCountdown() {
+  // używane do twardego anulowania (np. powrót na home)
+  if (restInterval) { clearInterval(restInterval); restInterval = null; }
+  if (restDoneTimer) { clearTimeout(restDoneTimer); restDoneTimer = null; }
+  document.getElementById('restOverlay').hidden = true;
+  document.getElementById('restDoneOverlay').hidden = true;
   setButtonMode('green');
 }
-function skipRest() { endRestCountdown(); }
+function skipRest() {
+  // Wcześniejsze przerwanie odliczania → od razu migający zielony? Nie — tylko zielony przycisk.
+  // Zachowanie zgodne ze speccem: skip = od razu wracamy do zielonego (bez migotania)
+  if (restInterval) { clearInterval(restInterval); restInterval = null; }
+  document.getElementById('restOverlay').hidden = true;
+  setButtonMode('green');
+}
 
 function confirmSet() {
   if (!currentExerciseId) return;
@@ -740,9 +853,8 @@ function confirmSet() {
     return;
   }
 
-  // Ostatnia seria tego ćwiczenia → animacja + powrót do listy
+  // Ostatnia seria tego ćwiczenia → animacja + przejście do kolejnego ćwiczenia
   if (state.current.sets[ex.id] >= ex.sets) {
-    // Dodaj do completedExercises (na końcu — najświeższe na dole listy "wykonanych")
     if (!state.current.completedExercises.includes(ex.id)) {
       state.current.completedExercises.push(ex.id);
     }
@@ -750,10 +862,7 @@ function confirmSet() {
     if (document.getElementById('screen-exercise').classList.contains('active')) {
       renderExerciseScreen(ex.id);
       showCelebration(() => {
-        currentExerciseId = null;
-        renderExerciseList();
-        showScreen('screen-list');
-        setButtonMode('green');
+        goToNextExerciseOrList(ex.id);
       });
       return;
     }
@@ -766,6 +875,35 @@ function confirmSet() {
 
   if (ex.restTimer) startRestCountdown();
   else setButtonMode('green');
+}
+
+function goToNextExerciseOrList(currentExId) {
+  // Znajdź następne aktywne ćwiczenie po bieżącym, które nie jest wykonane
+  const activeOrder = state.exercises.filter(e => e.active);
+  const currentIdx = activeOrder.findIndex(e => e.id === currentExId);
+  let nextEx = null;
+  // Najpierw szukaj po bieżącym
+  for (let i = currentIdx + 1; i < activeOrder.length; i++) {
+    if (!isExerciseDone(activeOrder[i])) { nextEx = activeOrder[i]; break; }
+  }
+  // Potem od początku
+  if (!nextEx) {
+    for (let i = 0; i < currentIdx; i++) {
+      if (!isExerciseDone(activeOrder[i])) { nextEx = activeOrder[i]; break; }
+    }
+  }
+  if (nextEx) {
+    currentExerciseId = nextEx.id;
+    renderExerciseScreen(nextEx.id);
+    setButtonMode('green');
+    // Pozostajemy na ekranie 2 z nowym ćwiczeniem
+  } else {
+    // Brak więcej ćwiczeń — wróć do listy (nie powinno się zdarzyć poza końcem treningu)
+    currentExerciseId = null;
+    renderExerciseList();
+    showScreen('screen-list');
+    setButtonMode('green');
+  }
 }
 
 function isTrainingComplete() {
@@ -905,6 +1043,7 @@ function enterHistoryEdit() {
   document.getElementById('btnEditHistory').classList.add('active');
   document.getElementById('editActions').hidden = false;
   document.getElementById('btnStart').classList.add('disabled');
+  document.getElementById('btnEditGoal').hidden = false;  // pokaż ołówek przy 3M
   renderHomeFromDraft();
 }
 function exitHistoryEdit(save) {
@@ -926,8 +1065,25 @@ function exitHistoryEdit(save) {
   document.getElementById('btnEditHistory').classList.remove('active');
   document.getElementById('editActions').hidden = true;
   document.getElementById('btnStart').classList.remove('disabled');
+  document.getElementById('btnEditGoal').hidden = true;  // ukryj ołówek przy 3M
   renderHome();
 }
+
+// Edycja celu treningowego
+document.getElementById('btnEditGoal').addEventListener('click', () => {
+  const current = state.goalDays || 3.5;
+  const val = prompt('Cel: co ile dni trening? (np. 3.5)', String(current));
+  if (val === null) return;
+  const num = parseFloat(val.replace(',', '.'));
+  if (isNaN(num) || num < 0.5 || num > 30) {
+    showToast('Niepoprawna wartość (0.5–30)', 'err');
+    return;
+  }
+  state.goalDays = num;
+  saveState();
+  renderHomeFromDraft();
+  showToast(`Cel: co ${num} dni`, 'ok');
+});
 
 function renderHomeFromDraft() {
   const orig = state.history;
@@ -1288,8 +1444,17 @@ document.getElementById('versionTag').addEventListener('click', () => {
   }
 });
 
-// --- Lista ćwiczeń: klik w ćwiczenie ---
-document.getElementById('exerciseList').addEventListener('click', e => {
+// --- Lista ćwiczeń: klik w ćwiczenie + long-press na zdjęciu ---
+const exerciseListEl = document.getElementById('exerciseList');
+
+let listLongPressTimer = null;
+let listLongPressTriggered = false;
+
+exerciseListEl.addEventListener('click', e => {
+  if (listLongPressTriggered) {
+    listLongPressTriggered = false;
+    return;
+  }
   const item = e.target.closest('.exercise-item');
   if (!item) return;
   const exId = parseInt(item.dataset.id, 10);
@@ -1301,9 +1466,105 @@ document.getElementById('exerciseList').addEventListener('click', e => {
   showScreen('screen-exercise');
 });
 
-// --- Ekran 2: zielony przycisk + żółty licznik ---
-document.getElementById('btnConfirmSet2').addEventListener('click', confirmSet);
+// Long-press na zdjęciu — toggle aktywności
+function setupLongPressForThumb(thumbEl, exId) {
+  const startPress = () => {
+    listLongPressTriggered = false;
+    listLongPressTimer = setTimeout(() => {
+      listLongPressTriggered = true;
+      toggleExerciseActive(exId);
+    }, 2000);
+  };
+  const cancelPress = () => {
+    if (listLongPressTimer) { clearTimeout(listLongPressTimer); listLongPressTimer = null; }
+  };
+  thumbEl.addEventListener('touchstart',  (e) => { e.preventDefault(); startPress(); }, { passive: false });
+  thumbEl.addEventListener('touchend',    cancelPress);
+  thumbEl.addEventListener('touchcancel', cancelPress);
+  thumbEl.addEventListener('mousedown',   startPress);
+  thumbEl.addEventListener('mouseup',     cancelPress);
+  thumbEl.addEventListener('mouseleave',  cancelPress);
+}
+
+function toggleExerciseActive(exId) {
+  const ex = state.exercises.find(e => e.id === exId);
+  if (!ex) return;
+  ex.active = !ex.active;
+  saveState();
+  // Jeśli właśnie dezaktywowane na ekranie 2 — wróć do listy
+  if (!ex.active && document.getElementById('screen-exercise').classList.contains('active')) {
+    currentExerciseId = null;
+    renderExerciseList();
+    showScreen('screen-list');
+  } else {
+    renderExerciseList();
+    if (currentExerciseId === exId) renderExerciseScreen(exId);
+  }
+  showToast(ex.active ? `${ex.name}: aktywne ✓` : `${ex.name}: nieaktywne`, 'ok');
+}
+
+// --- Ekran 2: zielony przycisk + żółty licznik (z long-pressem dla skip-all) ---
+const btnConfirm = document.getElementById('btnConfirmSet2');
+let confirmHoldTimer = null;
+let confirmHoldTriggered = false;
+
+function onConfirmPress() {
+  confirmHoldTriggered = false;
+  confirmHoldTimer = setTimeout(() => {
+    confirmHoldTriggered = true;
+    // Oznacz wszystkie pozostałe serie jako wykonane
+    confirmAllRemainingSets();
+  }, 2000);
+}
+function onConfirmRelease() {
+  if (confirmHoldTimer) { clearTimeout(confirmHoldTimer); confirmHoldTimer = null; }
+  if (confirmHoldTriggered) {
+    confirmHoldTriggered = false;
+    return;
+  }
+  confirmSet();
+}
+function onConfirmCancel() {
+  if (confirmHoldTimer) { clearTimeout(confirmHoldTimer); confirmHoldTimer = null; }
+}
+
+btnConfirm.addEventListener('touchstart',  (e) => { e.preventDefault(); onConfirmPress();   }, { passive: false });
+btnConfirm.addEventListener('touchend',    (e) => { e.preventDefault(); onConfirmRelease(); }, { passive: false });
+btnConfirm.addEventListener('touchcancel', (e) => { e.preventDefault(); onConfirmCancel();  }, { passive: false });
+btnConfirm.addEventListener('mousedown',   onConfirmPress);
+btnConfirm.addEventListener('mouseup',     onConfirmRelease);
+btnConfirm.addEventListener('mouseleave',  onConfirmCancel);
+
 document.getElementById('restTimer2').addEventListener('click', skipRest);
+
+function confirmAllRemainingSets() {
+  if (!currentExerciseId) return;
+  const ex = state.exercises.find(e => e.id === currentExerciseId);
+  if (!ex) return;
+  const done = state.current?.sets?.[ex.id] || 0;
+  const remaining = ex.sets - done;
+  if (remaining <= 0) return;
+  // Wykonaj wszystkie pozostałe serie naraz przez wielokrotne wywołanie confirmSet
+  // (lub jeden raz ustawiając done=ex.sets)
+  startTrainingIfNeeded();
+  ensureCurrentTraining();
+  state.current.sets[ex.id] = ex.sets;
+  saveState();
+  updateTopPanels();
+  showToast(`${remaining} ser. zaliczone ✓`, 'ok');
+
+  // Logika końcowa — taka jak przy ostatniej serii
+  if (isTrainingComplete()) {
+    finishTraining();
+    return;
+  }
+  if (!state.current.completedExercises.includes(ex.id)) {
+    state.current.completedExercises.push(ex.id);
+  }
+  saveState();
+  // Auto-przejście do kolejnego ćwiczenia (punkt 24)
+  goToNextExerciseOrList(ex.id);
+}
 
 // --- Powroty ---
 document.getElementById('btnBackToHome').addEventListener('click', () => {
