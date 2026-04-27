@@ -655,12 +655,64 @@ input { font-family: inherit; }
   background: none;
   border: none;
   cursor: pointer;
-  padding: 2px 4px;
-  border-radius: 8px;
+  padding: 4px 8px;
+  border-radius: 10px;
   transition: transform 150ms;
   margin-left: auto;
+  position: relative;
 }
 .bag-indicator:active { transform: scale(0.88); }
+.bag-emoji {
+  display: inline-block;
+  position: relative;
+}
+.bag-emoji--warn {
+  filter: drop-shadow(0 0 6px rgba(239,68,68,0.9)) drop-shadow(0 0 12px rgba(239,68,68,0.6));
+}
+.bag-emoji--warn::after {
+  content: '!';
+  position: absolute;
+  top: -4px;
+  right: -8px;
+  background: var(--red);
+  color: #fff;
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 900;
+  font-size: 11px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 8px rgba(239,68,68,0.7);
+  animation: bagPulse 1.4s ease-in-out infinite;
+}
+.bag-emoji--ok {
+  filter: drop-shadow(0 0 8px rgba(57,255,124,0.8)) drop-shadow(0 0 14px rgba(57,255,124,0.5));
+}
+.bag-emoji--ok::after {
+  content: '✓';
+  position: absolute;
+  top: -4px;
+  right: -8px;
+  background: var(--green);
+  color: #fff;
+  font-family: 'Rajdhani', sans-serif;
+  font-weight: 900;
+  font-size: 13px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 8px rgba(57,255,124,0.7);
+}
+@keyframes bagPulse {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.15); }
+}
 
 /* ==========================================================
    EKRAN PAKOWANIA
@@ -853,46 +905,105 @@ input { font-family: inherit; }
   font-size: 14px;
 }
 
-/* Hantelki — stan serii */
+/* Kule — stan serii (mała wersja na liście) */
 .sets-dots {
   display: inline-flex;
-  flex-wrap: wrap;
-  gap: 4px;
+  flex-wrap: nowrap;
+  gap: 5px;
   justify-content: flex-end;
-  max-width: 96px;
+  align-items: center;
 }
-.dumbbell {
-  width: 22px;
-  height: 11px;
+.ball {
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
 }
-.dumbbell.empty rect {
-  fill: #3a3a3a;
+.ball.empty {
+  background: radial-gradient(circle at 35% 35%, rgba(251,191,36,0.45) 0%, rgba(180,140,40,0.35) 60%, rgba(120,90,20,0.4) 100%);
+  border: 1px solid rgba(251,191,36,0.45);
+  box-shadow: inset 0 -2px 3px rgba(0,0,0,0.3), 0 0 4px rgba(251,191,36,0.2);
 }
-.dumbbell.filled rect {
-  fill: var(--green-glow);
-  filter: drop-shadow(0 0 4px rgba(57,255,124,0.5));
+.ball.filled {
+  background: radial-gradient(circle at 35% 35%, #b6ffce 0%, var(--green-glow) 50%, #14803c 100%);
+  box-shadow: inset 0 -2px 4px rgba(0,0,0,0.3), 0 0 8px rgba(57,255,124,0.6);
 }
+
 .sets-fallback {
   font-family: 'Orbitron', sans-serif;
   font-weight: 900;
 }
 
-/* Hantelki większe — ekran 2 */
+/* Kule — duża wersja na ekranie 2 */
 .sets-dots-large {
-  display: inline-flex;
-  flex-wrap: wrap;
-  gap: 6px;
+  display: grid;
+  gap: 8px;
   justify-content: center;
-  max-width: 100%;
+  justify-items: center;
+  padding: 4px 0;
 }
-.dumbbell-lg {
-  width: 28px;
-  height: 14px;
+.ball-lg {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: inline-block;
 }
-.dumbbell-lg.empty rect  { fill: #3a3a3a; }
-.dumbbell-lg.filled rect {
-  fill: var(--green-glow);
-  filter: drop-shadow(0 0 5px rgba(57,255,124,0.6));
+.ball-lg.empty {
+  background: radial-gradient(circle at 35% 35%, rgba(251,191,36,0.5) 0%, rgba(180,140,40,0.4) 60%, rgba(110,80,15,0.5) 100%);
+  border: 1.5px solid rgba(251,191,36,0.5);
+  box-shadow: inset 0 -3px 5px rgba(0,0,0,0.35), 0 0 6px rgba(251,191,36,0.25);
+}
+.ball-lg.filled {
+  background: radial-gradient(circle at 35% 35%, #b6ffce 0%, var(--green-glow) 50%, #14803c 100%);
+  box-shadow: inset 0 -3px 6px rgba(0,0,0,0.35), 0 0 12px rgba(57,255,124,0.7);
+}
+
+/* Przycisk Dodaj ćwiczenie — nieco inny wygląd */
+.exercise-item--add {
+  border-style: dashed;
+  border-color: var(--line-2);
+  opacity: 0.7;
+}
+.exercise-item--add:active { transform: scale(0.985); }
+.exercise-item--add:hover { opacity: 1; }
+.exercise-item__thumb--add {
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 900;
+  font-size: 36px;
+  color: var(--green-glow);
+  background: rgba(34,197,94,0.08);
+  border-color: var(--green-dark);
+}
+
+/* Tryb przestawiania (reorderowania) ćwiczenia */
+.exercise-item.reordering {
+  background: linear-gradient(180deg, #3a3a3a 0%, #2c2c2c 100%);
+  border-color: var(--yellow);
+  box-shadow: 0 0 16px rgba(251,191,36,0.35);
+}
+.reorder-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.reorder-btn {
+  width: 36px;
+  height: 28px;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.10);
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 100ms, background 150ms;
+}
+.reorder-btn:active { transform: scale(0.9); background: rgba(255,255,255,0.2); }
+.reorder-btn--ok {
+  background: var(--green);
+  color: #000;
 }
 
 /* Wykonane / nieaktywne — przygaszone */

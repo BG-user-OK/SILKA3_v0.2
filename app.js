@@ -5,7 +5,7 @@
 // ---------------------------------------------------------------
 // 0. WERSJA APLIKACJI
 // ---------------------------------------------------------------
-const APP_VERSION = '0.4.0';
+const APP_VERSION = '0.4.1';
 
 // Lista rzeczy do spakowania
 const PACK_ITEMS = [
@@ -286,10 +286,12 @@ function isPackedToday() {
 function updateBagIndicator() {
   const btn = document.getElementById('bagIndicator');
   if (isPackedToday()) {
-    btn.textContent = '✅';
+    // Plecak spakowany — zielony znacznik + plecak
+    btn.innerHTML = '<span class="bag-emoji bag-emoji--ok">🎒</span>';
     btn.title = 'Spakowane ✓ — kliknij aby zresetować';
   } else {
-    btn.textContent = '🔴';
+    // Pusta torba podróżna — czerwona aura
+    btn.innerHTML = '<span class="bag-emoji bag-emoji--warn">🧳</span>';
     btn.title = 'Nie spakowane — START otworzy listę pakowania';
   }
 }
@@ -376,7 +378,7 @@ function confirmPacking(withAnimation) {
 }
 
 document.getElementById('btnPackAccept').addEventListener('click', () => {
-  confirmPacking(false);
+  confirmPacking(true);
   showToast('Spakowane! Miłego treningu 💪', 'ok');
 });
 
@@ -531,37 +533,35 @@ function isExerciseDone(ex) {
 }
 
 function renderSetDots(done, total) {
-  if (total > 6) {
+  if (total > 8) {
     return `<span class="sets-fallback"><span>${done}</span><small>/${total}</small></span>`;
   }
+  // Kompaktowo na liście — ZAWSZE w jednym rzędzie (jest miejsce na 8)
   let html = '<span class="sets-dots">';
   for (let i = 0; i < total; i++) {
-    const filled = i < done;
-    html += `
-      <svg class="dumbbell ${filled ? 'filled' : 'empty'}" viewBox="0 0 24 12" aria-hidden="true">
-        <rect x="2"  y="3" width="3" height="6" rx="1"/>
-        <rect x="5"  y="5" width="14" height="2"/>
-        <rect x="19" y="3" width="3" height="6" rx="1"/>
-      </svg>`;
+    const cls = i < done ? 'ball filled' : 'ball empty';
+    html += `<span class="${cls}"></span>`;
   }
   html += '</span>';
   return html;
 }
 
 function renderSetDotsLarge(done, total) {
-  // Wersja duża dla ekranu 2 — dwie linie dla > 4 serii
+  // Wersja duża dla ekranu 2 — układ: 3 lub 4 w rzędzie zależnie od liczby
   if (total > 8) {
     return `<span class="sets-fallback"><span>${done}</span><small>/${total}</small></span>`;
   }
-  let html = '<span class="sets-dots-large">';
+  // Dla 4: po 2 w rzędzie. Dla 3: 3 w rzędzie. Dla 5,6: 3 w rzędzie. Dla 2: 2 w rzędzie. Dla 1: 1.
+  let perRow;
+  if (total <= 2) perRow = total;
+  else if (total === 4) perRow = 2;
+  else if (total <= 6) perRow = 3;
+  else perRow = 4;
+
+  let html = `<span class="sets-dots-large" style="grid-template-columns: repeat(${perRow}, 1fr);">`;
   for (let i = 0; i < total; i++) {
-    const filled = i < done;
-    html += `
-      <svg class="dumbbell-lg ${filled ? 'filled' : 'empty'}" viewBox="0 0 24 12" aria-hidden="true">
-        <rect x="2"  y="3" width="3" height="6" rx="1"/>
-        <rect x="5"  y="5" width="14" height="2"/>
-        <rect x="19" y="3" width="3" height="6" rx="1"/>
-      </svg>`;
+    const cls = i < done ? 'ball-lg filled' : 'ball-lg empty';
+    html += `<span class="${cls}"></span>`;
   }
   html += '</span>';
   return html;
@@ -608,7 +608,35 @@ function renderExerciseList() {
     li.className = 'exercise-item';
     if (mode === 'done')     li.classList.add('done');
     if (mode === 'inactive') li.classList.add('inactive-permanent');
+    if (reorderingExId === ex.id) li.classList.add('reordering');
     li.dataset.id = ex.id;
+
+    if (reorderingExId === ex.id) {
+      // Tryb przestawiania — pokaż strzałki ↑↓ + ✓ (gotowe)
+      li.innerHTML = `
+        <div class="exercise-item__thumb">
+          <img src="${ex.img}" alt="" onerror="this.replaceWith(Object.assign(document.createElement('span'),{textContent:'${ex.id}'}))">
+        </div>
+        <div class="exercise-item__name">${ex.name}</div>
+        <div class="reorder-controls">
+          <button class="reorder-btn" data-dir="up" aria-label="W górę">▲</button>
+          <button class="reorder-btn reorder-btn--ok" data-dir="ok" aria-label="Gotowe">✓</button>
+          <button class="reorder-btn" data-dir="down" aria-label="W dół">▼</button>
+        </div>
+      `;
+      list.appendChild(li);
+      li.querySelectorAll('.reorder-btn').forEach(btn => {
+        btn.addEventListener('click', e => {
+          e.stopPropagation();
+          const dir = btn.dataset.dir;
+          if (dir === 'up') moveExercise(ex.id, -1);
+          else if (dir === 'down') moveExercise(ex.id, +1);
+          else exitReorderMode();
+        });
+      });
+      return;
+    }
+
     li.innerHTML = `
       <div class="exercise-item__thumb">
         <img src="${ex.img}" alt="" onerror="this.replaceWith(Object.assign(document.createElement('span'),{textContent:'${ex.id}'}))">
@@ -622,11 +650,27 @@ function renderExerciseList() {
     // Long-press na thumbie → toggle aktywności
     const thumb = li.querySelector('.exercise-item__thumb');
     if (thumb) setupLongPressForThumb(thumb, ex.id);
+    // Long-press na prawej części (nazwa + kule) → tryb reorderowania
+    const name = li.querySelector('.exercise-item__name');
+    const sets = li.querySelector('.exercise-item__sets');
+    if (name) setupLongPressForReorder(name, ex.id);
+    if (sets) setupLongPressForReorder(sets, ex.id);
   };
 
   top.forEach(ex => renderItem(ex, 'top'));
   bottomDone.forEach(ex => renderItem(ex, 'done'));
   bottomInactive.forEach(ex => renderItem(ex, 'inactive'));
+
+  // Przycisk "Dodaj ćwiczenie" na końcu
+  const addLi = document.createElement('li');
+  addLi.className = 'exercise-item exercise-item--add';
+  addLi.innerHTML = `
+    <div class="exercise-item__thumb exercise-item__thumb--add">+</div>
+    <div class="exercise-item__name">Dodaj ćwiczenie</div>
+    <div class="exercise-item__sets"></div>
+  `;
+  addLi.addEventListener('click', addNewExercise);
+  list.appendChild(addLi);
 
   updateTopPanels();
 }
@@ -904,6 +948,29 @@ function goToNextExerciseOrList(currentExId) {
     showScreen('screen-list');
     setButtonMode('green');
   }
+}
+
+function addNewExercise() {
+  // Znajdź najwyższy id
+  const maxId = state.exercises.reduce((m, e) => Math.max(m, e.id), 0);
+  const newId = maxId + 1;
+  const newEx = {
+    id: newId,
+    name: `Ćwiczenie ${newId}`,
+    img: `Photos/${newId}.jpg`,
+    helperImages: [],
+    sets: 3,
+    reps: '12',
+    weight: null,
+    active: true,
+    restTimer: true,
+    isTime: false
+  };
+  state.exercises.push(newEx);
+  saveState();
+  // Otwórz modal edycji nowego ćwiczenia
+  editingExerciseId = newId;
+  openEditExercise(newId);
 }
 
 function isTrainingComplete() {
@@ -1455,8 +1522,12 @@ exerciseListEl.addEventListener('click', e => {
     listLongPressTriggered = false;
     return;
   }
+  // W trybie reorderowania ignoruj normalny klik
+  if (reorderingExId !== null) return;
   const item = e.target.closest('.exercise-item');
   if (!item) return;
+  // Pomiń przycisk "Dodaj"
+  if (item.classList.contains('exercise-item--add')) return;
   const exId = parseInt(item.dataset.id, 10);
   const ex = state.exercises.find(x => x.id === exId);
   if (!ex) return;
@@ -1466,7 +1537,7 @@ exerciseListEl.addEventListener('click', e => {
   showScreen('screen-exercise');
 });
 
-// Long-press na zdjęciu — toggle aktywności
+// Long-press na thumbie → toggle aktywności
 function setupLongPressForThumb(thumbEl, exId) {
   const startPress = () => {
     listLongPressTriggered = false;
@@ -1484,6 +1555,52 @@ function setupLongPressForThumb(thumbEl, exId) {
   thumbEl.addEventListener('mousedown',   startPress);
   thumbEl.addEventListener('mouseup',     cancelPress);
   thumbEl.addEventListener('mouseleave',  cancelPress);
+}
+
+// Long-press na prawej części (nazwa+kule) → tryb reorderowania
+function setupLongPressForReorder(rightAreaEl, exId) {
+  let pressTimer = null;
+  const startPress = () => {
+    listLongPressTriggered = false;
+    pressTimer = setTimeout(() => {
+      listLongPressTriggered = true;
+      enterReorderMode(exId);
+    }, 3000);
+  };
+  const cancelPress = () => {
+    if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; }
+  };
+  rightAreaEl.addEventListener('touchstart',  (e) => { startPress(); }, { passive: true });
+  rightAreaEl.addEventListener('touchend',    cancelPress);
+  rightAreaEl.addEventListener('touchcancel', cancelPress);
+  rightAreaEl.addEventListener('mousedown',   startPress);
+  rightAreaEl.addEventListener('mouseup',     cancelPress);
+  rightAreaEl.addEventListener('mouseleave',  cancelPress);
+}
+
+// Tryb reorderowania — wyświetla strzałki ↑↓ przy aktywnym ćwiczeniu
+let reorderingExId = null;
+function enterReorderMode(exId) {
+  reorderingExId = exId;
+  renderExerciseList();
+  showToast('Przesuń ćwiczenie strzałkami ↑↓', 'ok');
+}
+function exitReorderMode() {
+  reorderingExId = null;
+  renderExerciseList();
+}
+function moveExercise(exId, direction) {
+  // direction: -1 (w górę) / +1 (w dół)
+  const idx = state.exercises.findIndex(e => e.id === exId);
+  if (idx === -1) return;
+  const newIdx = idx + direction;
+  if (newIdx < 0 || newIdx >= state.exercises.length) return;
+  // swap
+  const tmp = state.exercises[idx];
+  state.exercises[idx] = state.exercises[newIdx];
+  state.exercises[newIdx] = tmp;
+  saveState();
+  renderExerciseList();
 }
 
 function toggleExerciseActive(exId) {
@@ -1562,8 +1679,10 @@ function confirmAllRemainingSets() {
     state.current.completedExercises.push(ex.id);
   }
   saveState();
-  // Auto-przejście do kolejnego ćwiczenia (punkt 24)
-  goToNextExerciseOrList(ex.id);
+  // Supernowa + auto-przejście do kolejnego ćwiczenia
+  showCelebration(() => {
+    goToNextExerciseOrList(ex.id);
+  });
 }
 
 // --- Powroty ---
