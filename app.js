@@ -5,7 +5,7 @@
 // ---------------------------------------------------------------
 // 0. WERSJA APLIKACJI
 // ---------------------------------------------------------------
-const APP_VERSION = '0.4.3';
+const APP_VERSION = '0.5.0';
 
 // Lista rzeczy do spakowania
 const PACK_ITEMS = [
@@ -116,6 +116,7 @@ function defaultExercises() {
     weight: e.weight,
     active: true,           // aktywność trwała (z edycji)
     restTimer: e.id !== 1,
+    restSeconds: 60,
     isTime: !!e.isTime
   }));
 }
@@ -185,6 +186,14 @@ function loadState() {
         // Migracja brakujących pól (dodawanych w nowszych wersjach)
         if (s.packingDate === undefined) s.packingDate = null;
         if (s.goalDays === undefined || s.goalDays === null) s.goalDays = 3.5;
+        // Migracja restSeconds dla każdego ćwiczenia + Waga jako string
+        if (Array.isArray(s.exercises)) {
+          s.exercises.forEach(ex => {
+            if (ex.restSeconds === undefined || ex.restSeconds === null) ex.restSeconds = 60;
+            // Waga — konwersja z liczby na string
+            if (typeof ex.weight === 'number') ex.weight = `${ex.weight} kg`;
+          });
+        }
         return s;
       }
     }
@@ -286,6 +295,21 @@ function avg3M(anchorISO, historyWithToday) {
   return span / (dates.length - 1);
 }
 
+// Zakres dat (od najstarszego do anchoraISO) używany do oceny "wystarczająco długiego" okresu
+function spanDays3M(anchorISO, historyWithToday) {
+  const anchor = fromISODate(anchorISO);
+  const from = new Date(anchor); from.setDate(from.getDate() - 90);
+  const dates = historyWithToday
+    .filter(h => {
+      const d = fromISODate(h.date);
+      return d > from && d <= anchor;
+    })
+    .map(h => h.date)
+    .sort();
+  if (dates.length < 2) return 0;
+  return daysBetween(dates[0], anchorISO);
+}
+
 function avgBR(anchorISO, historyWithToday) {
   const year = anchorISO.slice(0,4);
   const dates = historyWithToday
@@ -295,6 +319,16 @@ function avgBR(anchorISO, historyWithToday) {
   if (dates.length < 2) return null;
   const span = daysBetween(dates[0], dates[dates.length-1]);
   return span / (dates.length - 1);
+}
+
+function spanDaysBR(anchorISO, historyWithToday) {
+  const year = anchorISO.slice(0,4);
+  const dates = historyWithToday
+    .filter(h => h.date.slice(0,4) === year && h.date <= anchorISO)
+    .map(h => h.date)
+    .sort();
+  if (dates.length < 2) return 0;
+  return daysBetween(dates[0], anchorISO);
 }
 
 function fmtAvg(v) {
@@ -515,14 +549,19 @@ function renderHome() {
     const breakColor = breakVal === null ? '' :
       breakVal <= Math.ceil(goal + 0.5) ? 'color:var(--green-glow)' : 'color:var(--red-glow)';
 
-    // Helper — kolor dla średniej z uwzględnieniem poprzedniego (starszego) wiersza
-    function avgColor(currentVal, getPrevVal) {
+    // Helper — kolor dla średniej z uwzględnieniem poprzedniego (starszego) wiersza i okresu obserwacji
+    // Zielony tylko gdy: (1) wartość ≤ cel ORAZ (2) zakres dat ≥ minSpanDays
+    function avgColor(currentVal, getPrevVal, spanDays, minSpanDays) {
       if (currentVal === null) return '';
-      if (currentVal <= goal) return 'color:var(--green-glow)';
-      // > celu — sprawdź czy się poprawia względem POPRZEDNIEGO (starszego) treningu
+      const enoughData = spanDays >= minSpanDays;
+
+      if (currentVal <= goal && enoughData) return 'color:var(--green-glow)';
+      if (currentVal <= goal && !enoughData) return 'color:var(--orange)';  // wynik OK ale za mało danych
+
+      // currentVal > goal — sprawdź trend
       const prevVal = getPrevVal();
       if (prevVal !== null && currentVal < prevVal) {
-        return 'color:var(--orange)';  // pomarańczowy — poprawia się
+        return 'color:var(--orange)';  // pogarszanie wstrzymane, idzie ku lepszemu
       }
       return 'color:var(--red-glow)';
     }
@@ -531,8 +570,12 @@ function renderHome() {
     const getPrevA3 = () => nextOlder ? avg3M(nextOlder.date, historyPlusToday) : null;
     const getPrevAB = () => nextOlder ? avgBR(nextOlder.date, historyPlusToday) : null;
 
-    const a3Color = avgColor(a3raw, getPrevA3);
-    const aBColor = avgColor(aBraw, getPrevAB);
+    // Zakresy dat dla bieżącego wiersza
+    const span3M = spanDays3M(h.date, historyPlusToday);
+    const spanBR = spanDaysBR(h.date, historyPlusToday);
+
+    const a3Color = avgColor(a3raw, getPrevA3, span3M, 90);
+    const aBColor = avgColor(aBraw, getPrevAB, spanBR, 365);
 
     tr.innerHTML = `
       <td class="col-num">${num}</td>
@@ -745,9 +788,12 @@ function renderExerciseScreen(exId) {
 
   const done = state.current?.sets?.[ex.id] || 0;
   const params = document.getElementById('exerciseParams');
-  const weightHTML = ex.weight != null
-    ? `<div class="param weight"><span class="param__label">Waga</span><span class="param__value">${ex.weight} kg</span></div>`
-    : '';
+  // Waga może być stringiem (np. "12 kg" lub "12-18 kg") lub liczbą (legacy)
+  let weightHTML = '';
+  if (ex.weight !== null && ex.weight !== undefined && ex.weight !== '') {
+    const wDisplay = typeof ex.weight === 'number' ? `${ex.weight} kg` : ex.weight;
+    weightHTML = `<div class="param weight"><span class="param__label">Waga</span><span class="param__value">${wDisplay}</span></div>`;
+  }
   params.innerHTML = `
     <div class="param sets">
       <span class="param__label">Serie</span>
@@ -862,7 +908,10 @@ function setButtonMode(mode) {
 }
 
 function startRestCountdown() {
-  restRemaining = REST_SECONDS;
+  // Pobierz długość przerwy z bieżącego ćwiczenia (z fallbackiem na 60s)
+  const ex = state.exercises.find(e => e.id === currentExerciseId);
+  const seconds = (ex && ex.restSeconds) ? ex.restSeconds : REST_SECONDS;
+  restRemaining = seconds;
   setButtonMode('rest');
   // Krótka wibracja jako "registration" user gesture dla późniejszej wibracji
   vibratePhone(50);
@@ -896,18 +945,22 @@ function finishRestCountdown() {
   // Ukryj overlay odliczania
   document.getElementById('restOverlay').hidden = true;
   setButtonMode('green');
-  // Wibracja — wzór dłuższy: 3 silne pulsy
-  vibratePhone([400, 150, 400, 150, 600]);
-  // Migający zielony — do 10 s lub klik
+  // Wibracja — wzór mocny: 5 silnych pulsów. Pixel 8 Pro: powtórz po 200ms dla pewności.
+  vibratePhone([500, 200, 500, 200, 500, 200, 700]);
+  // Backup — drugi wzór po krótkiej chwili (czasem pierwsza ginie przez agresywne power-saving)
+  setTimeout(() => vibratePhone([300, 150, 300]), 100);
+  // Migający zielony — 3 rozbłyski (~1.8s) lub klik
   const flash = document.getElementById('restDoneOverlay');
   flash.hidden = false;
-  flash.onclick = () => endRestDone();
+  flash.onclick = () => endRestDoneAndStandby();  // klik w błyskanie → od razu czarny ekran
   if (restDoneTimer) clearTimeout(restDoneTimer);
-  restDoneTimer = setTimeout(endRestDone, 10000);
+  restDoneTimer = setTimeout(endRestDoneAndStandby, 1800);
 }
-function endRestDone() {
+function endRestDoneAndStandby() {
+  // Po rozbłysku → przejście w tryb czarnego ekranu czuwania
   if (restDoneTimer) { clearTimeout(restDoneTimer); restDoneTimer = null; }
   document.getElementById('restDoneOverlay').hidden = true;
+  showStandbyOverlay();
 }
 function endRestCountdown() {
   // używane do twardego anulowania (np. powrót na home)
@@ -915,18 +968,29 @@ function endRestCountdown() {
   if (restDoneTimer) { clearTimeout(restDoneTimer); restDoneTimer = null; }
   document.getElementById('restOverlay').hidden = true;
   document.getElementById('restDoneOverlay').hidden = true;
+  hideStandbyOverlay();
   setButtonMode('green');
 }
 function skipRest() {
-  // Wcześniejsze przerwanie odliczania → od razu migający zielony? Nie — tylko zielony przycisk.
-  // Zachowanie zgodne ze speccem: skip = od razu wracamy do zielonego (bez migotania)
   if (restInterval) { clearInterval(restInterval); restInterval = null; }
   document.getElementById('restOverlay').hidden = true;
   setButtonMode('green');
 }
 
+// Czarny ekran czuwania — kliknięcie gdziekolwiek wraca do normalnego widoku
+function showStandbyOverlay() {
+  const ov = document.getElementById('standbyOverlay');
+  if (ov) ov.hidden = false;
+}
+function hideStandbyOverlay() {
+  const ov = document.getElementById('standbyOverlay');
+  if (ov) ov.hidden = true;
+}
+
 function confirmSet() {
   if (!currentExerciseId) return;
+  // Warm-up wibracji — krótki impuls jako user gesture
+  vibratePhone(20);
   startTrainingIfNeeded();
   ensureCurrentTraining();
   const ex = state.exercises.find(e => e.id === currentExerciseId);
@@ -1010,6 +1074,7 @@ function addNewExercise() {
     weight: null,
     active: true,
     restTimer: true,
+    restSeconds: 60,
     isTime: false
   };
   state.exercises.push(newEx);
@@ -1107,9 +1172,15 @@ function openEditExercise(exId) {
   document.getElementById('fName').value = ex.name;
   document.getElementById('fSets').value = ex.sets;
   document.getElementById('fReps').value = ex.reps;
-  document.getElementById('fWeight').value = ex.weight ?? '';
+  // Waga — string (jeśli stara wersja ma liczbę, dolej "kg")
+  let weightDisplay = '';
+  if (ex.weight !== null && ex.weight !== undefined && ex.weight !== '') {
+    weightDisplay = (typeof ex.weight === 'number') ? `${ex.weight} kg` : String(ex.weight);
+  }
+  document.getElementById('fWeight').value = weightDisplay;
   document.getElementById('fActive').checked = !!ex.active;
   document.getElementById('fRestTimer').checked = !!ex.restTimer;
+  document.getElementById('fRestSeconds').value = ex.restSeconds || 60;
   document.getElementById('modalEditExercise').hidden = false;
 }
 function closeModal(id) {
@@ -1122,18 +1193,19 @@ document.getElementById('formEditExercise').addEventListener('submit', e => {
   if (!ex) return;
   const newSets = Math.max(0, parseInt(document.getElementById('fSets').value, 10) || 0);
   const newReps = document.getElementById('fReps').value.trim() || ex.reps;
-  const weightStr = document.getElementById('fWeight').value.trim();
-  const newWeight = weightStr === '' ? null : parseFloat(weightStr);
+  const newWeight = document.getElementById('fWeight').value.trim() || null;  // string lub null
   const newActive = document.getElementById('fActive').checked;
   const newRest = document.getElementById('fRestTimer').checked;
+  const newRestSec = Math.max(5, Math.min(600, parseInt(document.getElementById('fRestSeconds').value, 10) || 60));
   const newName = document.getElementById('fName').value.trim() || ex.name;
 
   ex.name = newName;
   ex.sets = newSets;
   ex.reps = newReps;
-  ex.weight = isNaN(newWeight) ? null : newWeight;
+  ex.weight = newWeight;  // teraz string
   ex.active = newActive;
   ex.restTimer = newRest;
+  ex.restSeconds = newRestSec;
 
   if (state.current?.sets?.[ex.id] != null && state.current.sets[ex.id] > newSets) {
     state.current.sets[ex.id] = newSets;
@@ -1650,12 +1722,33 @@ function moveExercise(exId, direction) {
   if (idx === -1) return;
   const newIdx = idx + direction;
   if (newIdx < 0 || newIdx >= state.exercises.length) return;
-  // swap
+  // swap w state
   const tmp = state.exercises[idx];
   state.exercises[idx] = state.exercises[newIdx];
   state.exercises[newIdx] = tmp;
   saveState();
-  renderExerciseList();
+
+  // Przesuń DOM-element BEZ pełnego re-rendera (zachowuje listenery i stan touch-eventów)
+  const list = document.getElementById('exerciseList');
+  const movingEl = list.querySelector(`.exercise-item[data-id="${exId}"]`);
+  if (!movingEl) {
+    // fallback — pełny render
+    renderExerciseList();
+    return;
+  }
+  if (direction < 0) {
+    // w górę — przed previous element item
+    const prev = movingEl.previousElementSibling;
+    if (prev && prev.classList.contains('exercise-item') && !prev.classList.contains('exercise-item--add')) {
+      list.insertBefore(movingEl, prev);
+    }
+  } else {
+    // w dół — po następnym
+    const next = movingEl.nextElementSibling;
+    if (next && next.classList.contains('exercise-item') && !next.classList.contains('exercise-item--add')) {
+      list.insertBefore(movingEl, next.nextElementSibling);
+    }
+  }
 }
 
 function toggleExerciseActive(exId) {
@@ -1706,6 +1799,15 @@ btnConfirm.addEventListener('touchcancel', (e) => { e.preventDefault(); onConfir
 btnConfirm.addEventListener('mousedown',   onConfirmPress);
 btnConfirm.addEventListener('mouseup',     onConfirmRelease);
 btnConfirm.addEventListener('mouseleave',  onConfirmCancel);
+
+// Cichy "przycisk" w dolnej 1/3 ekranu ćwiczenia → włącza standby
+document.getElementById('standbyTrigger').addEventListener('click', () => {
+  showStandbyOverlay();
+});
+// Klik gdziekolwiek na czarnym ekranie standby → powrót
+document.getElementById('standbyOverlay').addEventListener('click', () => {
+  hideStandbyOverlay();
+});
 
 document.getElementById('restTimer2').addEventListener('click', skipRest);
 

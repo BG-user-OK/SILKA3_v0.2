@@ -195,6 +195,12 @@
 
       <!-- Overlay migający zielony po zakończeniu odliczania -->
       <div class="rest-done-overlay" id="restDoneOverlay" hidden></div>
+
+      <!-- Cichy przycisk: dolna 1/3 ekranu ćwiczenia, włącza tryb czuwania -->
+      <div class="standby-trigger" id="standbyTrigger"></div>
+
+      <!-- Czarny ekran czuwania — kliknięcie gdziekolwiek = powrót -->
+      <div class="standby-overlay" id="standbyOverlay" hidden></div>
     </section>
 
     <!-- ============================== -->
@@ -222,18 +228,24 @@
               <input type="text" id="fReps" placeholder="np. 12 lub 12-15" />
             </label>
             <label class="field">
-              <span>Waga (kg)</span>
-              <input type="number" id="fWeight" min="0" step="0.5" />
+              <span>Waga</span>
+              <input type="text" id="fWeight" placeholder="np. 12 kg lub 12-18 kg" />
             </label>
           </div>
           <label class="field checkbox">
             <input type="checkbox" id="fActive" />
             <span>Ćwiczenie aktywne (trwale; odznacz aby ukryć z listy)</span>
           </label>
-          <label class="field checkbox">
-            <input type="checkbox" id="fRestTimer" />
-            <span>Odliczanie przerwy (60 s)</span>
-          </label>
+          <div class="rest-row">
+            <label class="field checkbox" style="flex: 1;">
+              <input type="checkbox" id="fRestTimer" />
+              <span>Odliczanie przerwy</span>
+            </label>
+            <label class="field rest-secs-field">
+              <span>Sekund</span>
+              <input type="number" id="fRestSeconds" min="5" max="600" step="5" value="60" />
+            </label>
+          </div>
           <footer class="modal__foot">
             <button type="button" class="btn btn--ghost" data-close-modal>Anuluj</button>
             <button type="submit" class="btn btn--primary">Zapisz</button>
