@@ -1206,7 +1206,8 @@ input { font-family: inherit; }
   to   { opacity: 0.95; }
 }
 
-/* Cichy "przycisk" — dolna 1/3 ekranu ćwiczenia. Niewidoczny. */
+/* Cichy "przycisk" — dolna 1/3 ekranu ćwiczenia. Niewidoczny.
+   AKTYWNY TYLKO gdy ekran ćwiczenia jest aktywny — inaczej nadpisuje pointer-events na innych ekranach */
 .standby-trigger {
   position: absolute;
   left: 0;
@@ -1215,8 +1216,11 @@ input { font-family: inherit; }
   height: 33%;
   z-index: 8;
   background: transparent;
-  pointer-events: auto;
+  pointer-events: none;  /* domyślnie wyłączony */
   cursor: pointer;
+}
+.screen.active .standby-trigger {
+  pointer-events: auto;  /* aktywny tylko gdy ekran ćwiczenia jest aktywny */
 }
 
 /* Czarny ekran czuwania — pełny ekran, klik gdziekolwiek wraca */
