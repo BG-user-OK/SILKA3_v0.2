@@ -5,21 +5,21 @@
 // ---------------------------------------------------------------
 // 0. WERSJA APLIKACJI
 // ---------------------------------------------------------------
-const APP_VERSION = '0.5.1';
+const APP_VERSION = '0.5.2';
 
 // Lista rzeczy do spakowania
 const PACK_ITEMS = [
-  { id: 'batki',    emoji: '🩲', label: 'Batki'    },
-  { id: 'skarpy',   emoji: '🧦', label: 'Skarpetki'},
-  { id: 'spodenki', emoji: '🩳', label: 'Spodenki' },
-  { id: 'koszulka', emoji: '👕', label: 'Koszulka' },
-  { id: 'buty',     emoji: '👟', label: 'Buty'     },
-  { id: 'klapki',   emoji: '🩴', label: 'Klapki'   },
-  { id: 'reczniki', emoji: '🛁', label: '2 Ręczniki'},
-  { id: 'poduszka', emoji: '🧘', label: 'Poduszka' },
-  { id: 'woda',     emoji: '💧', label: 'Woda'     },
-  { id: 'izotonic', emoji: '⚡', label: 'Isotonic' },
-  { id: 'shake',    emoji: '🥤', label: 'Shake'    },
+  { id: 'batki',     img: 'Photos/batki.png'     },
+  { id: 'skarpy',    img: 'Photos/skarpetki.png' },
+  { id: 'spodenki',  img: 'Photos/spodenki.png'  },
+  { id: 'koszulka',  img: 'Photos/koszulka.png'  },
+  { id: 'buty',      img: 'Photos/buty.png'       },
+  { id: 'klapki',    img: 'Photos/klapki.png'     },
+  { id: 'reczniki',  img: 'Photos/2ręczniki.png'  },
+  { id: 'poduszka',  img: 'Photos/poduszka.png'   },
+  { id: 'woda',      img: 'Photos/woda.png'       },
+  { id: 'izotonic',  img: 'Photos/isotonic.png'   },
+  { id: 'shake',     img: 'Photos/shake.png'      },
 ];
 
 // ---------------------------------------------------------------
@@ -386,10 +386,7 @@ function renderPackScreen() {
     const div = document.createElement('div');
     div.className = 'pack-item';
     div.dataset.id = item.id;
-    div.innerHTML = `
-      <span class="pack-item__emoji">${item.emoji}</span>
-      <span class="pack-item__label">${item.label}</span>
-    `;
+    div.innerHTML = `<img class="pack-item__img" src="${item.img}" alt="${item.id}" />`;
     div.addEventListener('click', () => togglePackItem(item.id));
     grid.appendChild(div);
   });
@@ -418,9 +415,10 @@ function togglePackItem(id) {
 }
 
 function updatePackProgress() {
-  const el = document.getElementById('packProgress');
-  el.textContent = `${packChecked.size} / ${PACK_ITEMS.length}`;
-  el.className = 'pack-progress' + (packChecked.size === PACK_ITEMS.length ? ' done' : '');
+  // Brak licznika tekstowego — sprawdzamy tylko czy wszystkie spakowane
+  if (packChecked.size === PACK_ITEMS.length) {
+    confirmPacking(true);
+  }
 }
 
 function confirmPacking(withAnimation) {
@@ -949,12 +947,16 @@ function finishRestCountdown() {
   vibratePhone([500, 200, 500, 200, 500, 200, 700]);
   // Backup — drugi wzór po krótkiej chwili (czasem pierwsza ginie przez agresywne power-saving)
   setTimeout(() => vibratePhone([300, 150, 300]), 100);
-  // Migający zielony — 3 rozbłyski (~1.8s) lub klik
+  // Migający zielony — 6 rozbłysków = ~3.6s zsynchronizowanych, lub klik
   const flash = document.getElementById('restDoneOverlay');
   flash.hidden = false;
-  flash.onclick = () => endRestDoneAndStandby();  // klik w błyskanie → od razu czarny ekran
+  // Reset animacji CSS
+  flash.style.animation = 'none';
+  flash.offsetHeight;
+  flash.style.animation = '';
+  flash.onclick = () => endRestDoneAndStandby();
   if (restDoneTimer) clearTimeout(restDoneTimer);
-  restDoneTimer = setTimeout(endRestDoneAndStandby, 1800);
+  restDoneTimer = setTimeout(endRestDoneAndStandby, 3700);
 }
 function endRestDoneAndStandby() {
   // Po rozbłysku → przejście w tryb czarnego ekranu czuwania
