@@ -1,90 +1,62 @@
-// Service Worker dla Tarczy czasu pracy
-// WAŻNE: przy każdej nowej wersji aplikacji zmień nazwę cache - stare wersje automatycznie się usuną.
-const CACHE_NAME = 'tarcza-v1.24';
-
-const FILES_TO_CACHE = [
+// SIŁKA 3 — Service Worker
+const CACHE_NAME = 'silka3-v0.5.2';
+const CORE_ASSETS = [
   './',
   './index.html',
+  './styles.css',
+  './app.js',
   './manifest.json',
   './icon-192.png',
   './icon-512.png',
-  './icon-512-maskable.png'
+  './icon-maskable-512.png',
+  'https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Orbitron:wght@500;700;900&display=swap'
 ];
 
-self.addEventListener('install', (event) => {
+// Instalacja — prekeszowanie zasobów
+self.addEventListener('install', event => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(FILES_TO_CACHE))
+    caches.open(CACHE_NAME).then(cache => {
+      return cache.addAll(CORE_ASSETS.map(url => new Request(url, { cache: 'reload' })))
+        .catch(err => {
+          console.warn('[SW] Niektóre zasoby nie zostały scachowane:', err);
+        });
+    })
   );
-  // Domyślnie czekamy aż stary SW zostanie zwolniony - ALE klient może wysłać SKIP_WAITING
-  // żeby od razu przejąć kontrolę (zaraz po wykryciu nowego SW).
+  self.skipWaiting();
 });
 
-self.addEventListener('activate', (event) => {
+// Aktywacja — czyszczenie starych cache'ów
+self.addEventListener('activate', event => {
   event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(
-        keys
-          .filter((k) => k !== CACHE_NAME)
-          .map((k) => caches.delete(k))
-      )
-    )
+    caches.keys().then(keys =>
+      Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))
+    ).then(() => self.clients.claim())
   );
-  self.clients.claim();
 });
 
-// Klient prosi o natychmiastową aktywację nowej wersji
-self.addEventListener('message', (event) => {
-  if (event.data && event.data.type === 'SKIP_WAITING') {
-    self.skipWaiting();
-  }
-});
+// Fetch — cache-first, z fallbackiem do sieci; po pobraniu z sieci aktualizacja cache
+self.addEventListener('fetch', event => {
+  const req = event.request;
+  if (req.method !== 'GET') return;
 
-self.addEventListener('fetch', (event) => {
-  if (event.request.method !== 'GET') return;
-
-  const url = new URL(event.request.url);
-
-  // Nie cache'ujemy requestów do Google Apps Script - zawsze na żywo
-  if (url.hostname.includes('script.google.com') ||
-      url.hostname.includes('script.googleusercontent.com')) {
-    return;
-  }
-
-  // Network-first dla nawigacji i kluczowych plików - zapewnia, że nowa wersja
-  // dochodzi szybko, bez konieczności czekania na wygaśnięcie cache.
-  const isNavigate = event.request.mode === 'navigate';
-  const isHTML = url.pathname.endsWith('/') || url.pathname.endsWith('.html');
-  const isSW = url.pathname.endsWith('sw.js');
-  const isManifest = url.pathname.endsWith('manifest.json');
-
-  if (isNavigate || isHTML || isSW || isManifest) {
-    event.respondWith(
-      fetch(event.request, { cache: 'no-cache' })
-        .then((response) => {
-          if (response && response.status === 200 && response.type === 'basic') {
-            const clone = response.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
-          }
-          return response;
-        })
-        .catch(() => caches.match(event.request))
-    );
-    return;
-  }
-
-  // Dla reszty (obrazki, ikony itp.) - cache-first
   event.respondWith(
-    caches.match(event.request).then((cached) => {
-      if (cached) return cached;
-      return fetch(event.request)
-        .then((response) => {
-          if (response && response.status === 200 && response.type === 'basic') {
-            const clone = response.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+    caches.match(req).then(cached => {
+      if (cached) {
+        // W tle aktualizuj cache (stale-while-revalidate)
+        fetch(req).then(fresh => {
+          if (fresh && fresh.status === 200 && fresh.type !== 'opaque') {
+            caches.open(CACHE_NAME).then(c => c.put(req, fresh.clone())).catch(()=>{});
           }
-          return response;
-        })
-        .catch(() => cached);
+        }).catch(()=>{});
+        return cached;
+      }
+      return fetch(req).then(fresh => {
+        if (fresh && fresh.status === 200) {
+          const clone = fresh.clone();
+          caches.open(CACHE_NAME).then(c => c.put(req, clone)).catch(()=>{});
+        }
+        return fresh;
+      }).catch(() => caches.match('./index.html'));
     })
   );
 });
