@@ -1149,33 +1149,121 @@ input { font-family: inherit; }
 .helper-images:empty { display: none; }
 
 /* ==========================================================
-   OVERLAY ODLICZANIA PRZERWY
+   OVERLAY ODLICZANIA PRZERWY — bateria
    ========================================================== */
 .rest-overlay {
   position: absolute;
   inset: 0;
   z-index: 40;
-  background: rgba(0,0,0,0.94);
+  background: #000;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  cursor: pointer;
   animation: restOverlayIn 200ms ease-out;
+  user-select: none;
+  -webkit-user-select: none;
 }
 @keyframes restOverlayIn {
   from { opacity: 0; }
   to   { opacity: 1; }
 }
-.rest-overlay__seconds {
+
+.battery-percent {
+  position: absolute;
+  top: max(20px, var(--safe-t));
+  left: 0; right: 0;
+  text-align: center;
   font-family: 'Orbitron', sans-serif;
   font-weight: 900;
-  font-size: clamp(120px, 50vw, 280px);
-  line-height: 1;
-  color: rgba(220,220,230,0.45);
-  text-shadow: 0 0 40px rgba(255,255,255,0.06);
-  letter-spacing: -0.02em;
-  user-select: none;
+  font-size: 42px;
+  color: var(--green-glow);
+  text-shadow: 0 0 16px rgba(57,255,124,0.6);
+  letter-spacing: 0.04em;
+  z-index: 3;
 }
+
+.battery-frame {
+  position: relative;
+  width: min(72vw, 280px);
+  aspect-ratio: 719 / 1600;
+  display: flex;
+  align-items: stretch;
+  justify-content: stretch;
+}
+
+.battery-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  z-index: 2;
+  pointer-events: none;
+}
+
+/* Wypełnienie zielone — pozycjonowane do pola wewnątrz baterii */
+.battery-fill {
+  position: absolute;
+  left: 9.7%;
+  right: 9.7%;
+  top: 9%;
+  bottom: 7.5%;
+  z-index: 1;
+  display: flex;
+  flex-direction: column-reverse;  /* od dołu */
+  overflow: hidden;
+  border-radius: 4px;
+}
+.battery-fill__bar {
+  width: 100%;
+  background: linear-gradient(180deg, #4dff7e 0%, #14d050 100%);
+  border-bottom: 1px solid rgba(0,0,0,0.45);
+  box-shadow: inset 0 0 8px rgba(255,255,255,0.18);
+  transition: height 1s linear;
+  height: 0;
+}
+
+/* Strefa stop — okrągłe pole na środku ekranu, ~1/3 szerokości */
+.battery-stop-zone {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 33vw;
+  height: 33vw;
+  max-width: 200px;
+  max-height: 200px;
+  border-radius: 50%;
+  z-index: 4;
+  cursor: pointer;
+  background: transparent;
+  /* Subtelne wskazanie gdzie kliknąć — lekka aura żeby wiadomo było */
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.04);
+}
+
+/* Info o stanie serii — kropki nad lub pod baterią */
+.battery-sets-info {
+  position: absolute;
+  bottom: max(20px, var(--safe-b));
+  left: 0; right: 0;
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  z-index: 3;
+}
+.battery-sets-info .ball-lg {
+  /* override tylko jeśli kule nie zachowują się dobrze */
+}
+
+/* === STARE Z PORZĄDKU — zostawiam jako fallback === */
+.rest-overlay__seconds {
+  display: none;  /* niepotrzebne, używamy baterii */
+}
+
+/* ==========================================================
+   ANIMACJA — ZIELONA SUPERNOWA + CZARNA FALA
+   ========================================================== */
 
 /* Migający zielony po zakończeniu odliczania — zsynchronizowany z ekranem */
 .rest-done-overlay {
@@ -1224,9 +1312,7 @@ input { font-family: inherit; }
   to   { opacity: 1; }
 }
 
-/* ==========================================================
-   ANIMACJA — SUPERNOWA
-   ========================================================== */
+/* Supernowa — rozbłysk po wykonaniu ćwiczenia */
 .celebration {
   position: absolute;
   inset: 0;
@@ -1254,6 +1340,45 @@ input { font-family: inherit; }
   border-radius: 50%;
   border: 4px solid rgba(255,255,255,0.85);
   animation: novaRing 1.5s ease-out forwards;
+}
+
+/* Druga faza — czarna fala maskująca zmianę ekranu */
+.celebration--blackwave {
+  background: transparent;
+  animation: blackwaveFade 0.9s ease-out forwards;
+}
+.celebration--blackwave .celebration__core {
+  background: radial-gradient(circle, #000 0%, #000 60%, rgba(0,0,0,0.85) 80%, transparent 100%);
+  filter: none;
+  animation: blackwaveCore 0.9s ease-out forwards;
+}
+.celebration--blackwave .celebration__ring {
+  border-color: #000;
+  animation: blackwaveRing 0.9s ease-out forwards;
+}
+
+@keyframes blackwaveCore {
+  0%   { transform: scale(0); opacity: 1; }
+  60%  { transform: scale(2.5); opacity: 1; }
+  100% { transform: scale(5.0); opacity: 1; }
+}
+@keyframes blackwaveRing {
+  0%   { transform: scale(0); opacity: 1; }
+  60%  { transform: scale(2.8); opacity: 0.8; }
+  100% { transform: scale(5.5); opacity: 0; }
+}
+@keyframes blackwaveFade {
+  0%   { opacity: 0; }
+  20%  { opacity: 1; }
+  100% { opacity: 1; }
+}
+
+/* Trzecia faza — drugi zielony rozbłysk po przerysowaniu ekranu */
+.celebration--phase2 .celebration__core {
+  animation: novaCore 1.0s cubic-bezier(.2,.8,.3,1) forwards;
+}
+.celebration--phase2 .celebration__ring {
+  animation: novaRing 1.0s ease-out forwards;
 }
 @keyframes novaFade {
   0%   { opacity: 0; }

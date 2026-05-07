@@ -5,7 +5,7 @@
 // ---------------------------------------------------------------
 // 0. WERSJA APLIKACJI
 // ---------------------------------------------------------------
-const APP_VERSION = '0.5.2';
+const APP_VERSION = '0.6.0';
 
 // Lista rzeczy do spakowania
 const PACK_ITEMS = [
@@ -905,21 +905,30 @@ function setButtonMode(mode) {
   }
 }
 
+let restTotalSeconds = 60;
+
 function startRestCountdown() {
   // Pobierz długość przerwy z bieżącego ćwiczenia (z fallbackiem na 60s)
   const ex = state.exercises.find(e => e.id === currentExerciseId);
   const seconds = (ex && ex.restSeconds) ? ex.restSeconds : REST_SECONDS;
+  restTotalSeconds = seconds;
   restRemaining = seconds;
   setButtonMode('rest');
   // Krótka wibracja jako "registration" user gesture dla późniejszej wibracji
   vibratePhone(50);
-  // Pokaż overlay wygaszony
+
+  // Wybuduj baterię — kreski w środku
+  buildBatteryFill(seconds);
+  // Pokaż info o seriach (kropki)
+  buildBatterySetsInfo(ex);
+
   const overlay = document.getElementById('restOverlay');
-  const secEl = document.getElementById('restOverlaySec');
-  secEl.textContent = restRemaining;
   overlay.hidden = false;
-  // Klik w overlay — skraca przerwę
-  overlay.onclick = () => skipRest();
+  overlay.onclick = null;  // overlay sam nie reaguje, tylko strefa stop
+  document.getElementById('batteryStopZone').onclick = (e) => {
+    e.stopPropagation();
+    skipRest();
+  };
 
   updateRestUI();
   if (restInterval) clearInterval(restInterval);
@@ -931,9 +940,50 @@ function startRestCountdown() {
     }
   }, 1000);
 }
+
+function buildBatteryFill(seconds) {
+  const fill = document.getElementById('batteryFill');
+  fill.innerHTML = '';
+  // Każda sekunda = 1 kreska. Wszystkie kreski mają równą wysokość = 100/seconds %
+  const barHeightPct = 100 / seconds;
+  for (let i = 0; i < seconds; i++) {
+    const bar = document.createElement('div');
+    bar.className = 'battery-fill__bar';
+    bar.dataset.idx = i;
+    bar.style.height = '0';  // wszystkie startują puste, rosną kolejno
+    fill.appendChild(bar);
+  }
+}
+
+function buildBatterySetsInfo(ex) {
+  const info = document.getElementById('batterySetsInfo');
+  info.innerHTML = '';
+  if (!ex) return;
+  const done = state.current?.sets?.[ex.id] || 0;
+  for (let i = 0; i < ex.sets; i++) {
+    const ball = document.createElement('span');
+    ball.className = 'ball-lg ' + (i < done ? 'filled' : 'empty');
+    info.appendChild(ball);
+  }
+}
+
 function updateRestUI() {
-  document.getElementById('restTimerValue2').textContent = restRemaining;
-  document.getElementById('restOverlaySec').textContent = restRemaining;
+  // Ile sekund minęło
+  const elapsed = restTotalSeconds - restRemaining;
+  const pct = Math.min(100, Math.round(elapsed * 100 / restTotalSeconds));
+  document.getElementById('batteryPercent').textContent = pct + '%';
+
+  // Wypełniaj kreski w baterii — od dołu (column-reverse robi to automatycznie)
+  // Każda kreska ma wysokość 100/total %, "wypełnione" = ustawiona height
+  const barHeightPct = 100 / restTotalSeconds;
+  const bars = document.querySelectorAll('#batteryFill .battery-fill__bar');
+  bars.forEach((b, i) => {
+    if (i < elapsed) {
+      b.style.height = barHeightPct + '%';
+    } else {
+      b.style.height = '0';
+    }
+  });
 }
 
 let restDoneTimer = null;
@@ -1119,25 +1169,28 @@ async function finishTraining() {
   endRestCountdown();
   setButtonMode('green');
 
-  showCelebration(async () => {
+  showCelebration(() => {
     currentExerciseId = null;
+    // NAJPIERW pokaż ekran home — eksport robimy w tle żeby user nie czekał
+    renderHome();
+    showScreen('screen-home');
 
-    // Próba eksportu po treningu
+    // Eksport w tle (fire-and-forget)
     const url = (localStorage.getItem(LS_APPSCRIPT) || '').trim();
     if (url) {
-      showToast('Eksport do arkusza…', 'ok');
-      const ok = await exportPendingToSheets(url);
-      if (ok) {
-        showToast('Wyeksportowano do arkusza ✓', 'ok');
-      } else {
-        showToast('Eksport nieudany — spróbuj później', 'err');
-      }
+      showToast('Wysyłanie w tle...', 'ok');
+      exportPendingToSheets(url).then(ok => {
+        if (ok) {
+          showToast('Wyeksportowano do arkusza ✓', 'ok');
+        } else {
+          showToast('Eksport nieudany — przy następnym treningu', 'err');
+        }
+      }).catch(() => {
+        showToast('Eksport nieudany — przy następnym treningu', 'err');
+      });
     } else {
       showToast('Eksport: kliknij 3× w wersję, by skonfigurować URL', 'err');
     }
-
-    renderHome();
-    showScreen('screen-home');
   });
 }
 
@@ -1151,15 +1204,38 @@ function showCelebration(cb) {
   cel.style.position = 'fixed';
   cel.style.inset = '0';
   cel.style.zIndex = '9999';
+
+  // FAZA 1 — zielona fala
+  cel.classList.remove('celebration--blackwave', 'celebration--phase2');
   cel.hidden = false;
-  // restart animacji
   cel.style.animation = 'none';
   cel.offsetHeight;
   cel.style.animation = '';
+
   setTimeout(() => {
-    cel.hidden = true;
-    if (cb) cb();
-  }, 1500);
+    // FAZA 2 — czarna fala (rozszerza się od środka, kryje cały ekran)
+    cel.classList.add('celebration--blackwave');
+    cel.style.animation = 'none';
+    cel.offsetHeight;
+    cel.style.animation = '';
+
+    setTimeout(() => {
+      // W trakcie pełnej czerni (apex czarnej fali) — wykonaj callback (zmiana ekranu)
+      if (cb) cb();
+
+      // FAZA 3 — drugi zielony rozbłysk po przerysowaniu ekranu
+      cel.classList.remove('celebration--blackwave');
+      cel.classList.add('celebration--phase2');
+      cel.style.animation = 'none';
+      cel.offsetHeight;
+      cel.style.animation = '';
+
+      setTimeout(() => {
+        cel.hidden = true;
+        cel.classList.remove('celebration--phase2');
+      }, 1000);
+    }, 700);  // czarna fala: pokrycie ekranu
+  }, 1300);  // zielona fala: trochę krócej żeby cała sekwencja nie była za długa
 }
 
 // ---------------------------------------------------------------

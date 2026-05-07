@@ -187,9 +187,15 @@
         <div class="celebration__ring"></div>
       </div>
 
-      <!-- Overlay odliczania przerwy — wygaszony ekran z dużymi sekundami -->
+      <!-- Overlay odliczania przerwy — bateria ładująca się od dołu -->
       <div class="rest-overlay" id="restOverlay" hidden>
-        <span class="rest-overlay__seconds" id="restOverlaySec">60</span>
+        <div class="battery-percent" id="batteryPercent">0%</div>
+        <div class="battery-frame">
+          <div class="battery-fill" id="batteryFill"></div>
+          <img class="battery-img" src="Photos/bateria.png" alt="" />
+        </div>
+        <div class="battery-stop-zone" id="batteryStopZone" aria-label="Stop"></div>
+        <div class="battery-sets-info" id="batterySetsInfo"></div>
       </div>
 
       <!-- Overlay migający zielony po zakończeniu odliczania -->
