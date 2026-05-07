@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+  <meta name="theme-color" content="#0a0a0a" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="SIŁKA3" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" href="icon-192.png" />
+  <link rel="apple-touch-icon" href="icon-192.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Orbitron:wght@500;700;900&display=swap" />
+  <link rel="stylesheet" href="styles.css?v=0.6.9" />
+  <title>SIŁKA 3</title>
+</head>
+<body>
+  <div id="app">
+
+    <!-- ============================== -->
+    <!-- EKRAN 0 — STRONA STARTOWA      -->
+    <!-- ============================== -->
+    <section class="screen screen--home active" id="screen-home">
+      <header class="home-top">
+        <button class="home-btn-mega" id="btnStart" aria-label="Start treningu">
+          <span class="home-btn-mega__icon">💪</span>
+          <span class="home-btn-mega__label">START</span>
+        </button>
+        <div class="home-finish-img" id="homeFinishImg" hidden>
+          <img src="Photos/fotokoniec.jpg" alt="Trening zakończony" />
+        </div>
+      </header>
+
+      <div class="history-wrap">
+        <div class="history-toolbar">
+          <h1 class="history-title">SIŁKA <span>3</span></h1>
+          <span class="version-tag" id="versionTag">v0.0.0</span>
+          <button class="bag-indicator" id="bagIndicator" aria-label="Status pakowania" title="Kliknij aby zresetować pakowanie">🎒</button>
+          <div class="edit-actions" id="editActions" hidden>
+            <button class="edit-action cancel" id="btnCancelEdit" aria-label="Anuluj">✕</button>
+            <button class="edit-action accept" id="btnAcceptEdit" aria-label="Zatwierdź">✓</button>
+          </div>
+        </div>
+
+        <div class="history-scroll" id="historyScroll">
+          <table class="history-table">
+            <thead>
+              <tr id="historyHeader">
+                <th class="col-num" title="Numer treningu">🔢</th>
+                <th class="col-date" title="Data">
+                  <span class="th-content">
+                    📅
+                    <button class="th-btn th-btn--edit" id="btnEditHistory" aria-label="Edytuj daty">✏️</button>
+                  </span>
+                </th>
+                <th class="col-dow" title="Dzień tygodnia">🗓️</th>
+                <th class="col-duration" title="Czas trwania">⏱️</th>
+                <th class="col-break" title="Dni od ostatniego treningu">🔁</th>
+                <th class="col-3m" title="Średnia z 3 miesięcy">
+                  <span class="th-content">
+                    3M
+                    <button class="th-btn th-btn--goal" id="btnEditGoal" aria-label="Edytuj cel" hidden>✏️</button>
+                  </span>
+                </th>
+                <th class="col-br" title="Średnia w bieżącym roku">
+                  <span class="th-content">
+                    BR
+                    <button class="th-btn th-btn--import" id="btnImportSheets" aria-label="Importuj z arkusza">⤓</button>
+                  </span>
+                </th>
+              </tr>
+            </thead>
+            <tbody id="historyBody">
+              <!-- generowane w JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="install-hint" id="installHint" hidden>
+        <span>📲 Zainstaluj jako aplikację</span>
+      </div>
+    </section>
+
+    <!-- ============================== -->
+    <!-- EKRAN PAKOWANIA                -->
+    <!-- ============================== -->
+    <section class="screen screen--pack" id="screen-pack">
+      <header class="pack-header">
+        <button class="pack-nav-btn pack-nav-btn--cancel" id="btnPackCancel" aria-label="Anuluj">✕</button>
+        <h2 class="pack-title">Spakuj się!</h2>
+        <button class="pack-nav-btn pack-nav-btn--accept" id="btnPackAccept" aria-label="Spakowane">✓</button>
+      </header>
+      <div class="pack-grid" id="packGrid">
+        <!-- generowane w JS -->
+      </div>
+      <div class="celebration" id="celebrationPack" hidden>
+        <div class="celebration__core"></div>
+        <div class="celebration__ring"></div>
+      </div>
+    </section>
+
+    <!-- ============================== -->
+    <section class="screen screen--list" id="screen-list">
+      <header class="top-panel">
+        <div class="counters">
+          <div class="counter counter--done" id="setsDone">0</div>
+          <div class="counter counter--left" id="setsLeft">0</div>
+        </div>
+        <div class="top-center">
+          <button class="back-btn back-btn--home" id="btnBackToHome" aria-label="Wróć na stronę główną">⌂</button>
+          <div class="training-clock" id="trainingClockList" hidden>
+            <svg class="clock-frame" viewBox="0 0 100 100" aria-hidden="true">
+              <circle cx="50" cy="50" r="46" />
+              <line x1="50" y1="6" x2="50" y2="12"/>
+              <line x1="50" y1="88" x2="50" y2="94"/>
+              <line x1="6" y1="50" x2="12" y2="50"/>
+              <line x1="88" y1="50" x2="94" y2="50"/>
+            </svg>
+            <span class="clock-text" id="trainingTimerList">0:00</span>
+          </div>
+        </div>
+        <div class="action-area" id="actionAreaList">
+          <!-- ekran listy: brak zielonego przycisku — pojawia się dopiero w ćwiczeniu -->
+        </div>
+      </header>
+
+      <div class="exercises-scroll" id="exercisesScroll">
+        <ul class="exercise-list" id="exerciseList">
+          <!-- generowane w JS -->
+        </ul>
+      </div>
+    </section>
+
+    <!-- ============================== -->
+    <!-- EKRAN 2 — WYKONANIE ĆWICZENIA  -->
+    <!-- ============================== -->
+    <section class="screen screen--exercise" id="screen-exercise">
+      <header class="top-panel">
+        <div class="counters">
+          <div class="counter counter--done" id="setsDone2">0</div>
+          <div class="counter counter--left" id="setsLeft2">0</div>
+        </div>
+        <div class="top-center">
+          <button class="back-btn back-btn--arrow" id="btnBackToList" aria-label="Wróć do listy">←</button>
+          <div class="training-clock" id="trainingClockEx" hidden>
+            <svg class="clock-frame" viewBox="0 0 100 100" aria-hidden="true">
+              <circle cx="50" cy="50" r="46" />
+              <line x1="50" y1="6" x2="50" y2="12"/>
+              <line x1="50" y1="88" x2="50" y2="94"/>
+              <line x1="6" y1="50" x2="12" y2="50"/>
+              <line x1="88" y1="50" x2="94" y2="50"/>
+            </svg>
+            <span class="clock-text" id="trainingTimerEx">0:00</span>
+          </div>
+        </div>
+        <div class="action-area" id="actionAreaExercise">
+          <button class="big-green-btn" id="btnConfirmSet2" aria-label="Wykonano serię">
+            <span class="big-green-btn__check">✓</span>
+          </button>
+          <div class="rest-timer" id="restTimer2" hidden>
+            <span id="restTimerValue2">60</span>
+          </div>
+        </div>
+      </header>
+
+      <div class="exercise-body">
+        <button class="edit-exercise-btn" id="btnEditExercise" aria-label="Edytuj ćwiczenie">⚙</button>
+
+        <div class="exercise-layout">
+          <aside class="exercise-params" id="exerciseParams">
+            <!-- generowane w JS -->
+          </aside>
+          <div class="exercise-image-wrap">
+            <img class="exercise-image" id="exerciseImage" alt="Ilustracja ćwiczenia" />
+            <div class="exercise-image-fallback" id="exerciseImageFallback"></div>
+          </div>
+        </div>
+
+        <div class="helper-images" id="helperImages"></div>
+      </div>
+
+      <div class="celebration" id="celebration" hidden>
+        <div class="celebration__core"></div>
+        <div class="celebration__ring"></div>
+      </div>
+
+      <!-- Overlay odliczania przerwy — bateria ładująca się od dołu -->
+      <div class="rest-overlay" id="restOverlay" hidden>
+        <div class="battery-percent" id="batteryPercent">0%</div>
+        <div class="battery-frame">
+          <div class="battery-fill" id="batteryFill"></div>
+          <img class="battery-img" src="Photos/Bateria.png" alt="" />
+        </div>
+        <div class="battery-stop-zone" id="batteryStopZone" aria-label="Stop"></div>
+        <div class="battery-sets-info" id="batterySetsInfo"></div>
+      </div>
+
+      <!-- Overlay migający zielony po zakończeniu odliczania -->
+      <div class="rest-done-overlay" id="restDoneOverlay" hidden></div>
+
+      <!-- Cichy przycisk: dolna 1/3 ekranu ćwiczenia, włącza tryb czuwania -->
+      <div class="standby-trigger" id="standbyTrigger"></div>
+
+      <!-- Czarny ekran czuwania — kliknięcie gdziekolwiek = powrót -->
+      <div class="standby-overlay" id="standbyOverlay" hidden></div>
+    </section>
+
+    <!-- ============================== -->
+    <!-- MODAL: EDYCJA ĆWICZENIA        -->
+    <!-- ============================== -->
+    <div class="modal" id="modalEditExercise" hidden>
+      <div class="modal__backdrop" data-close-modal></div>
+      <div class="modal__sheet">
+        <header class="modal__head">
+          <h2>Edycja ćwiczenia</h2>
+          <button class="modal__close" data-close-modal aria-label="Zamknij">✕</button>
+        </header>
+        <form class="modal__form" id="formEditExercise">
+          <label class="field">
+            <span>Nazwa</span>
+            <input type="text" id="fName" />
+          </label>
+          <label class="field">
+            <span>Serie</span>
+            <input type="number" id="fSets" min="0" step="1" />
+          </label>
+          <label class="field">
+            <span>Powtórzenia</span>
+            <input type="text" id="fReps" placeholder="np. 12 lub 12-15" />
+          </label>
+          <label class="field">
+            <span>Waga</span>
+            <input type="text" id="fWeight" placeholder="np. 12 kg lub 12-18 kg" />
+          </label>
+          <label class="field checkbox">
+            <input type="checkbox" id="fActive" />
+            <span>Ćwiczenie aktywne (odznacz aby ukryć z listy)</span>
+          </label>
+          <div class="rest-row">
+            <label class="field checkbox" style="flex: 1;">
+              <input type="checkbox" id="fRestTimer" />
+              <span>Odliczanie przerwy</span>
+            </label>
+            <label class="field rest-secs-field">
+              <span>Sekund</span>
+              <input type="number" id="fRestSeconds" min="5" max="600" step="5" value="60" />
+            </label>
+          </div>
+          <footer class="modal__foot">
+            <button type="button" class="btn btn--ghost" data-close-modal>Anuluj</button>
+            <button type="submit" class="btn btn--primary">Zapisz</button>
+          </footer>
+        </form>
+      </div>
+    </div>
+
+    <!-- ============================== -->
+    <!-- MODAL: EDYCJA DATY W HISTORII  -->
+    <!-- ============================== -->
+    <div class="modal" id="modalDatePicker" hidden>
+      <div class="modal__backdrop" data-close-modal></div>
+      <div class="modal__sheet">
+        <header class="modal__head">
+          <h2>Zmień datę</h2>
+          <button class="modal__close" data-close-modal aria-label="Zamknij">✕</button>
+        </header>
+        <div class="calendar" id="calendar">
+          <div class="calendar__nav">
+            <button class="calendar__navbtn" id="calPrev" aria-label="Poprzedni miesiąc">‹</button>
+            <div class="calendar__title" id="calTitle"></div>
+            <button class="calendar__navbtn" id="calNext" aria-label="Następny miesiąc">›</button>
+          </div>
+          <div class="calendar__weekdays">
+            <span>Pn</span><span>Wt</span><span>Śr</span><span>Cz</span><span>Pt</span><span>Sb</span><span>Nd</span>
+          </div>
+          <div class="calendar__grid" id="calGrid"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================== -->
+    <!-- MODAL: POTWIERDZENIE           -->
+    <!-- ============================== -->
+    <div class="modal" id="modalConfirm" hidden>
+      <div class="modal__backdrop" data-close-modal></div>
+      <div class="modal__sheet modal__sheet--confirm">
+        <header class="modal__head">
+          <h2 id="confirmTitle">Potwierdź</h2>
+          <button class="modal__close" data-close-modal aria-label="Zamknij">✕</button>
+        </header>
+        <p class="confirm-text" id="confirmText"></p>
+        <footer class="modal__foot">
+          <button type="button" class="btn btn--ghost" data-close-modal>Anuluj</button>
+          <button type="button" class="btn btn--danger" id="btnConfirmYes">Tak</button>
+        </footer>
+      </div>
+    </div>
+
+    <!-- TOAST -->
+    <div class="toast" id="toast" hidden></div>
+
+  </div>
+
+  <script src="app.js?v=0.6.9"></script>
+</body>
+</html>
