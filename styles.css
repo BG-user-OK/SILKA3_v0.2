@@ -1185,7 +1185,7 @@ input { font-family: inherit; }
 
 .battery-frame {
   position: relative;
-  width: min(72vw, 280px);
+  width: min(78vw, 360px);
   aspect-ratio: 719 / 1600;
   display: flex;
   align-items: stretch;
@@ -1205,10 +1205,10 @@ input { font-family: inherit; }
 /* Wypełnienie zielone — pozycjonowane do pola wewnątrz baterii, NA WIERZCHU obrazka */
 .battery-fill {
   position: absolute;
-  left: 9.7%;
-  right: 9.7%;
-  top: 9%;
-  bottom: 7.5%;
+  left: 13%;
+  right: 13%;
+  top: 14%;
+  bottom: 5%;
   z-index: 2;
   display: flex;
   flex-direction: column-reverse;  /* od dołu */
