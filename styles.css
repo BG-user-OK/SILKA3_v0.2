@@ -1165,6 +1165,9 @@ input { font-family: inherit; }
   -webkit-user-select: none;
   padding: 0;
   overflow: hidden;
+  /* DIAGNOSTYKA: niebieska ramka — to widoczny obszar overlay */
+  outline: 3px solid blue;
+  outline-offset: -3px;
 }
 @keyframes restOverlayIn {
   from { opacity: 0; }
@@ -1183,16 +1186,20 @@ input { font-family: inherit; }
   text-shadow: 0 0 16px rgba(57,255,124,0.6);
   letter-spacing: 0.04em;
   z-index: 3;
+  /* DIAGNOSTYKA: żółta ramka */
+  outline: 2px solid yellow;
 }
 
 .battery-frame {
   position: relative;
   height: 88vh;
-  width: auto;
-  aspect-ratio: 719 / 1600;
+  width: calc(88vh * 719 / 1600);
   margin: 0 auto;
   flex-shrink: 0;
   flex-grow: 0;
+  /* DIAGNOSTYKA: różowa ramka — obszar w którym powinna być cała bateria */
+  outline: 3px solid magenta;
+  outline-offset: -3px;
 }
 
 .battery-img {
@@ -1203,27 +1210,26 @@ input { font-family: inherit; }
   display: block;
   z-index: 1;
   pointer-events: none;
+  /* DIAGNOSTYKA: pomarańczowa ramka — obszar obrazka */
+  outline: 2px solid orange;
+  outline-offset: -2px;
 }
 
-/* Wypełnienie zielone — pole wewnątrz baterii, NA WIERZCHU obrazka.
-   Obrazek ma 719×1600. Pole zielone wewnątrz: 580×1336.
-   Współrzędne pola w obrazku (procent względem rozmiaru obrazka):
-     - left = (719-580)/2 / 719 = 9.7%
-     - right = 9.7%
-     - top = ~13% (pod nakładką baterii)
-     - bottom = ~3.5% (przy dnie baterii)
-*/
+/* Wypełnienie zielone — pole wewnątrz baterii, NA WIERZCHU obrazka. */
 .battery-fill {
   position: absolute;
-  left: 14%;
-  right: 14%;
-  top: 18%;
-  bottom: 12%;
+  left: 9.7%;
+  right: 9.7%;
+  top: 13%;
+  bottom: 3.5%;
   z-index: 2;
   display: flex;
   flex-direction: column-reverse;
   overflow: hidden;
   border-radius: 4px;
+  /* DIAGNOSTYKA: czerwona ramka — pole gdzie pojawiają się kreski wypełnienia */
+  outline: 3px solid red;
+  outline-offset: -3px;
 }
 .battery-fill__bar {
   width: 100%;
