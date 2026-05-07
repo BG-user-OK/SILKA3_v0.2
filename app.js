@@ -5,7 +5,7 @@
 // ---------------------------------------------------------------
 // 0. WERSJA APLIKACJI
 // ---------------------------------------------------------------
-const APP_VERSION = '0.6.4';
+const APP_VERSION = '0.6.5';
 
 // Lista rzeczy do spakowania
 const PACK_ITEMS = [

@@ -1163,6 +1163,8 @@ input { font-family: inherit; }
   animation: restOverlayIn 200ms ease-out;
   user-select: none;
   -webkit-user-select: none;
+  padding: 0;
+  overflow: hidden;
 }
 @keyframes restOverlayIn {
   from { opacity: 0; }
@@ -1185,11 +1187,12 @@ input { font-family: inherit; }
 
 .battery-frame {
   position: relative;
-  height: 75vh;
+  height: 88vh;
+  width: auto;
   aspect-ratio: 719 / 1600;
-  display: flex;
-  align-items: stretch;
-  justify-content: stretch;
+  margin: 0 auto;
+  flex-shrink: 0;
+  flex-grow: 0;
 }
 
 .battery-img {
