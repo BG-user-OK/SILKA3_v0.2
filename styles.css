@@ -1198,18 +1198,18 @@ input { font-family: inherit; }
   width: 100%;
   height: 100%;
   object-fit: contain;
-  z-index: 2;
+  z-index: 1;
   pointer-events: none;
 }
 
-/* Wypełnienie zielone — pozycjonowane do pola wewnątrz baterii */
+/* Wypełnienie zielone — pozycjonowane do pola wewnątrz baterii, NA WIERZCHU obrazka */
 .battery-fill {
   position: absolute;
   left: 9.7%;
   right: 9.7%;
   top: 9%;
   bottom: 7.5%;
-  z-index: 1;
+  z-index: 2;
   display: flex;
   flex-direction: column-reverse;  /* od dołu */
   overflow: hidden;
