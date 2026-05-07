@@ -1204,18 +1204,31 @@ input { font-family: inherit; }
   pointer-events: none;
 }
 
-/* Wypełnienie zielone — pole wewnątrz baterii, NA WIERZCHU obrazka. */
+/* Wypełnienie zielone — pozycjonowane względem rest-overlay (cały ekran),
+   wartości w vh dopasowane do baterii o height: 95vh wycentrowanej. 
+   Bateria zajmuje 95vh, środek ekranu, więc:
+   - top frame = (100vh - 95vh) / 2 = 2.5vh od góry ekranu
+   - dno frame = 100 - 2.5 = 97.5vh
+   - top fill (17% od góry frame) = 2.5 + 95*0.17 = 18.65vh
+   - bottom fill (6% od dołu frame) = 100 - (97.5 - 95*0.06) = 100 - 91.8 = 8.2vh
+   Szerokość frame: 95vh * 719/1600 = 42.69vh
+   Środek: 50vw - 21.35vh, prawa: 50vw + 21.35vh
+   Pole 14% od krawędzi frame: 42.69vh * 0.14 = 5.98vh wycięcia z każdej strony.
+   Pole zaczyna się od: 50vw - 21.35vh + 5.98vh = 50vw - 15.37vh
+   Pole kończy się na: 50vw + 15.37vh
+*/
 .battery-fill {
   position: absolute;
-  left: 14%;
-  right: 14%;
-  top: 17%;
-  bottom: 6%;
+  left: calc(50vw - 15.37vh);
+  right: calc(50vw - 15.37vh);
+  top: 18.65vh;
+  bottom: 8.2vh;
   z-index: 2;
   display: flex;
   flex-direction: column-reverse;
   overflow: hidden;
   border-radius: 4px;
+  pointer-events: none;
 }
 .battery-fill__bar {
   width: 100%;
