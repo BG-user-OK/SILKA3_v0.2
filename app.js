@@ -5,7 +5,7 @@
 // ---------------------------------------------------------------
 // 0. WERSJA APLIKACJI
 // ---------------------------------------------------------------
-const APP_VERSION = '0.7.1';
+const APP_VERSION = '0.7.3';
 
 // Lista rzeczy do spakowania
 const PACK_ITEMS = [
@@ -953,6 +953,62 @@ function buildBatteryFill(seconds) {
     bar.style.height = '0';  // wszystkie startują puste, rosną kolejno
     fill.appendChild(bar);
   }
+  // Po wybudowaniu — dopasuj pozycję do faktycznego rozmiaru obrazka
+  positionBatteryFill();
+}
+
+function positionBatteryFill() {
+  const fill = document.getElementById('batteryFill');
+  const img = document.querySelector('.battery-img');
+  const frame = document.querySelector('.battery-frame');
+  if (!fill || !img || !frame) return;
+
+  const setPosition = () => {
+    const frameRect = frame.getBoundingClientRect();
+    const imgRect = img.getBoundingClientRect();
+    if (imgRect.width === 0 || imgRect.height === 0) return;
+
+    const fieldLeftPct = 0.097;
+    const fieldRightPct = 0.097;
+    const fieldTopPct = 0.13;
+    const fieldBottomPct = 0.035;
+
+    const fillLeft = imgRect.left - frameRect.left + imgRect.width * fieldLeftPct;
+    const fillTop = imgRect.top - frameRect.top + imgRect.height * fieldTopPct;
+    const fillRight = (frameRect.right - imgRect.right) + imgRect.width * fieldRightPct;
+    const fillBottom = (frameRect.bottom - imgRect.bottom) + imgRect.height * fieldBottomPct;
+
+    fill.style.left = fillLeft + 'px';
+    fill.style.top = fillTop + 'px';
+    fill.style.right = fillRight + 'px';
+    fill.style.bottom = fillBottom + 'px';
+
+    // DEBUG — wyświetl wszystkie pomiary na ekranie
+    let dbg = document.getElementById('batteryDebug');
+    if (!dbg) {
+      dbg = document.createElement('div');
+      dbg.id = 'batteryDebug';
+      dbg.style.cssText = 'position:fixed;top:60px;left:8px;right:8px;z-index:99;background:rgba(0,0,0,0.85);color:#0f0;font-family:monospace;font-size:11px;padding:6px;border:2px solid yellow;border-radius:6px;line-height:1.4;pointer-events:none;';
+      document.body.appendChild(dbg);
+    }
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    dbg.innerHTML = `
+WIN: ${w}×${h}<br>
+FRAME: ${Math.round(frameRect.width)}×${Math.round(frameRect.height)} @ (${Math.round(frameRect.left)}, ${Math.round(frameRect.top)})<br>
+IMG: ${Math.round(imgRect.width)}×${Math.round(imgRect.height)} @ (${Math.round(imgRect.left)}, ${Math.round(imgRect.top)})<br>
+NATURAL: ${img.naturalWidth}×${img.naturalHeight}<br>
+FILL: L=${Math.round(fillLeft)} T=${Math.round(fillTop)} R=${Math.round(fillRight)} B=${Math.round(fillBottom)}<br>
+RATIO: ${(imgRect.width/imgRect.height).toFixed(3)} (target 0.449)
+    `;
+  };
+
+  if (img.complete && img.naturalWidth > 0) {
+    setPosition();
+  } else {
+    img.addEventListener('load', setPosition, { once: true });
+  }
+  window.addEventListener('resize', setPosition);
 }
 
 function buildBatterySetsInfo(ex) {

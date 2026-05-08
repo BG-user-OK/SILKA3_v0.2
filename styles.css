@@ -1187,8 +1187,9 @@ input { font-family: inherit; }
 
 .battery-frame {
   position: relative;
-  height: 95vh;
-  width: calc(95vh * 719 / 1600);
+  width: 90vw;
+  height: calc(90vw * 1600 / 719);
+  max-height: 95vh;
   margin: 0 auto;
   flex-shrink: 0;
   flex-grow: 0;
@@ -1204,31 +1205,23 @@ input { font-family: inherit; }
   pointer-events: none;
 }
 
-/* Wypełnienie zielone — pozycjonowane względem rest-overlay (cały ekran),
-   wartości w vh dopasowane do baterii o height: 95vh wycentrowanej. 
-   Bateria zajmuje 95vh, środek ekranu, więc:
-   - top frame = (100vh - 95vh) / 2 = 2.5vh od góry ekranu
-   - dno frame = 100 - 2.5 = 97.5vh
-   - top fill (17% od góry frame) = 2.5 + 95*0.17 = 18.65vh
-   - bottom fill (6% od dołu frame) = 100 - (97.5 - 95*0.06) = 100 - 91.8 = 8.2vh
-   Szerokość frame: 95vh * 719/1600 = 42.69vh
-   Środek: 50vw - 21.35vh, prawa: 50vw + 21.35vh
-   Pole 14% od krawędzi frame: 42.69vh * 0.14 = 5.98vh wycięcia z każdej strony.
-   Pole zaczyna się od: 50vw - 21.35vh + 5.98vh = 50vw - 15.37vh
-   Pole kończy się na: 50vw + 15.37vh
-*/
+/* Wypełnienie zielone — POZYCJONOWANE PRZEZ JS PO ZAŁADOWANIU OBRAZKA.
+   Pole zielone wewnątrz Bateria.png (719×1600): szer 580 wys 1336.
+   Stosunek pola do obrazka: szer 80.7%, wys 83.5%.
+   JS ustawi piksele po zmierzeniu wymiarów obrazu. */
 .battery-fill {
   position: absolute;
-  left: calc(50vw - 15.37vh);
-  right: calc(50vw - 15.37vh);
-  top: 18.65vh;
-  bottom: 8.2vh;
   z-index: 2;
   display: flex;
   flex-direction: column-reverse;
   overflow: hidden;
   border-radius: 4px;
   pointer-events: none;
+  /* fallback gdyby JS się nie wykonał */
+  left: 14%;
+  right: 14%;
+  top: 17%;
+  bottom: 6%;
 }
 .battery-fill__bar {
   width: 100%;
