@@ -5,7 +5,7 @@
 // ---------------------------------------------------------------
 // 0. WERSJA APLIKACJI
 // ---------------------------------------------------------------
-const APP_VERSION = '0.8.1';
+const APP_VERSION = '0.5.3';
 
 // Lista rzeczy do spakowania
 const PACK_ITEMS = [
@@ -911,24 +911,17 @@ function startRestCountdown() {
   // Pobierz długość przerwy z bieżącego ćwiczenia (z fallbackiem na 60s)
   const ex = state.exercises.find(e => e.id === currentExerciseId);
   const seconds = (ex && ex.restSeconds) ? ex.restSeconds : REST_SECONDS;
-  restTotalSeconds = seconds;
   restRemaining = seconds;
   setButtonMode('rest');
   // Krótka wibracja jako "registration" user gesture dla późniejszej wibracji
   vibratePhone(50);
-
-  // NAJPIERW pokaż overlay żeby elementy miały wymiary (getBoundingClientRect != 0)
+  // Pokaż overlay wygaszony
   const overlay = document.getElementById('restOverlay');
+  const secEl = document.getElementById('restOverlaySec');
+  secEl.textContent = restRemaining;
   overlay.hidden = false;
-  overlay.onclick = null;
-  document.getElementById('batteryStopZone').onclick = (e) => {
-    e.stopPropagation();
-    skipRest();
-  };
-
-  // Teraz buduj zawartość — element jest widoczny więc ma wymiary
-  buildBatteryFill(seconds);
-  buildBatterySetsInfo(ex);
+  // Klik w overlay — skraca przerwę
+  overlay.onclick = () => skipRest();
 
   updateRestUI();
   if (restInterval) clearInterval(restInterval);
@@ -940,125 +933,9 @@ function startRestCountdown() {
     }
   }, 1000);
 }
-
-function buildBatteryFill(seconds) {
-  const fill = document.getElementById('batteryFill');
-  fill.innerHTML = '';
-  // Każda sekunda = 1 kreska. Wszystkie kreski mają równą wysokość = 100/seconds %
-  const barHeightPct = 100 / seconds;
-  for (let i = 0; i < seconds; i++) {
-    const bar = document.createElement('div');
-    bar.className = 'battery-fill__bar';
-    bar.dataset.idx = i;
-    bar.style.height = '0';  // wszystkie startują puste, rosną kolejno
-    fill.appendChild(bar);
-  }
-  // Po wybudowaniu — dopasuj pozycję do faktycznego rozmiaru obrazka
-  positionBatteryFill();
-}
-
-function positionBatteryFill() {
-  const fill = document.getElementById('batteryFill');
-  const img = document.querySelector('.battery-img');
-  const frame = document.querySelector('.battery-frame');
-  if (!fill || !img || !frame) return;
-
-  const setPosition = () => {
-    const frameRect = frame.getBoundingClientRect();
-    const containerW = frameRect.width;
-    const containerH = frameRect.height;
-
-    // Wyliczamy rzeczywisty rozmiar i pozycję obrazka po object-fit:contain
-    const natW = img.naturalWidth || 719;
-    const natH = img.naturalHeight || 1600;
-    const natRatio = natW / natH;
-    const containerRatio = containerW / containerH;
-
-    let renderedW, renderedH, offsetX, offsetY;
-    if (containerRatio > natRatio) {
-      // kontener szerszy niż obraz — obraz dopasowuje się do wysokości
-      renderedH = containerH;
-      renderedW = containerH * natRatio;
-      offsetX = (containerW - renderedW) / 2;
-      offsetY = 0;
-    } else {
-      // kontener węższy lub równy — obraz dopasowuje się do szerokości
-      renderedW = containerW;
-      renderedH = containerW / natRatio;
-      offsetX = 0;
-      offsetY = (containerH - renderedH) / 2;
-    }
-
-    const fieldLeftPct = 0.13;    // 13% od lewej krawędzi obrazka
-    const fieldRightPct = 0.13;   // 13% od prawej
-    const fieldTopPct = 0.46;     // 46% od góry obrazka (pod dziubkiem i nakładką)
-    const fieldBottomPct = 0.05;  // 5% od dołu obrazka (przy dnie baterii)
-
-    const fillLeft = offsetX + renderedW * fieldLeftPct;
-    const fillTop = offsetY + renderedH * fieldTopPct;
-    const fillRight = offsetX + renderedW * fieldRightPct;
-    const fillBottom = offsetY + renderedH * fieldBottomPct;
-
-    // Debug
-    let dbg = document.getElementById('batteryDebug');
-    if (!dbg) {
-      dbg = document.createElement('div');
-      dbg.id = 'batteryDebug';
-      dbg.style.cssText = 'position:fixed;top:60px;left:8px;right:8px;z-index:9999;background:rgba(0,0,0,0.9);color:#0f0;font-family:monospace;font-size:11px;padding:6px;border:2px solid yellow;border-radius:6px;line-height:1.4;pointer-events:none;';
-      document.body.appendChild(dbg);
-    }
-    const fillRect = fill.getBoundingClientRect();
-    const bars = fill.querySelectorAll('.battery-fill__bar');
-    const filledBars = Array.from(bars).filter(b => b.style.height !== '0' && b.style.height !== '');
-    let firstBarRect = null;
-    if (filledBars.length > 0) firstBarRect = filledBars[0].getBoundingClientRect();
-    dbg.innerHTML = `WIN: ${window.innerWidth}×${window.innerHeight}<br>FRAME: ${Math.round(containerW)}×${Math.round(containerH)}<br>RENDERED: ${Math.round(renderedW)}×${Math.round(renderedH)} @ offset (${Math.round(offsetX)}, ${Math.round(offsetY)})<br>NAT: ${natW}×${natH}<br>FILL set: L=${Math.round(fillLeft)} T=${Math.round(fillTop)} R=${Math.round(fillRight)} B=${Math.round(fillBottom)}<br>FILL real: ${Math.round(fillRect.width)}×${Math.round(fillRect.height)} @ (${Math.round(fillRect.left)}, ${Math.round(fillRect.top)})<br>BAR1: ${firstBarRect ? Math.round(firstBarRect.width)+'×'+Math.round(firstBarRect.height)+' @ ('+Math.round(firstBarRect.left)+','+Math.round(firstBarRect.top)+')' : 'none'}`;
-
-    fill.style.left = fillLeft + 'px';
-    fill.style.top = fillTop + 'px';
-    fill.style.right = fillRight + 'px';
-    fill.style.bottom = fillBottom + 'px';
-  };
-
-  if (img.complete && img.naturalWidth > 0) {
-    requestAnimationFrame(() => requestAnimationFrame(setPosition));
-  } else {
-    img.addEventListener('load', () => {
-      requestAnimationFrame(() => requestAnimationFrame(setPosition));
-    }, { once: true });
-  }
-  window.addEventListener('resize', setPosition);
-}
-
-function buildBatterySetsInfo(ex) {
-  const info = document.getElementById('batterySetsInfo');
-  info.innerHTML = '';
-  if (!ex) return;
-  const done = state.current?.sets?.[ex.id] || 0;
-  for (let i = 0; i < ex.sets; i++) {
-    const ball = document.createElement('span');
-    ball.className = 'ball-lg ' + (i < done ? 'filled' : 'empty');
-    info.appendChild(ball);
-  }
-}
-
 function updateRestUI() {
-  // Ile sekund minęło
-  const elapsed = restTotalSeconds - restRemaining;
-  const pct = Math.min(100, Math.round(elapsed * 100 / restTotalSeconds));
-  document.getElementById('batteryPercent').textContent = pct + '%';
-
-  // Wypełniaj kreski w baterii — od dołu (column-reverse robi to automatycznie)
-  // Każda kreska ma wysokość 100/total %, "wypełnione" = ustawiona height
-  const barHeightPct = 100 / restTotalSeconds;
-  const bars = document.querySelectorAll('#batteryFill .battery-fill__bar');
-  bars.forEach((b, i) => {
-    if (i < elapsed) {
-      b.style.height = barHeightPct + '%';
-    } else {
-      b.style.height = '0';
-    }
-  });
+  document.getElementById('restTimerValue2').textContent = restRemaining;
+  document.getElementById('restOverlaySec').textContent = restRemaining;
 }
 
 let restDoneTimer = null;

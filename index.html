@@ -13,7 +13,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Orbitron:wght@500;700;900&display=swap" />
-  <link rel="stylesheet" href="styles.css?v=0.8.1" />
+  <link rel="stylesheet" href="styles.css?v=0.5.3" />
   <title>SIŁKA 3</title>
 </head>
 <body>
@@ -187,15 +187,9 @@
         <div class="celebration__ring"></div>
       </div>
 
-      <!-- Overlay odliczania przerwy — bateria ładująca się od dołu -->
+      <!-- Overlay odliczania przerwy — wygaszony ekran z dużymi sekundami -->
       <div class="rest-overlay" id="restOverlay" hidden>
-        <div class="battery-percent" id="batteryPercent">0%</div>
-        <div class="battery-frame">
-          <img class="battery-img" src="Photos/Bateria.png" alt="" />
-          <div class="battery-fill" id="batteryFill"></div>
-        </div>
-        <div class="battery-stop-zone" id="batteryStopZone" aria-label="Stop"></div>
-        <div class="battery-sets-info" id="batterySetsInfo"></div>
+        <span class="rest-overlay__seconds" id="restOverlaySec">60</span>
       </div>
 
       <!-- Overlay migający zielony po zakończeniu odliczania -->
@@ -304,6 +298,6 @@
 
   </div>
 
-  <script src="app.js?v=0.8.1"></script>
+  <script src="app.js?v=0.5.3"></script>
 </body>
 </html>
