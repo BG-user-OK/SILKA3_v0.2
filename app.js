@@ -5,7 +5,7 @@
 // ---------------------------------------------------------------
 // 0. WERSJA APLIKACJI
 // ---------------------------------------------------------------
-const APP_VERSION = '0.7.8';
+const APP_VERSION = '0.7.9';
 
 // Lista rzeczy do spakowania
 const PACK_ITEMS = [
@@ -989,10 +989,10 @@ function positionBatteryFill() {
       offsetY = (containerH - renderedH) / 2;
     }
 
-    const fieldLeftPct = 0.097;
-    const fieldRightPct = 0.097;
-    const fieldTopPct = 0.20;     // pole zaczyna się na 20% od góry obrazka
-    const fieldBottomPct = 0.06;  // pole kończy się 6% od dołu obrazka
+    const fieldLeftPct = 0.13;    // 13% od lewej krawędzi obrazka
+    const fieldRightPct = 0.13;   // 13% od prawej
+    const fieldTopPct = 0.46;     // 46% od góry obrazka (pod dziubkiem i nakładką)
+    const fieldBottomPct = 0.05;  // 5% od dołu obrazka (przy dnie baterii)
 
     const fillLeft = offsetX + renderedW * fieldLeftPct;
     const fillTop = offsetY + renderedH * fieldTopPct;
