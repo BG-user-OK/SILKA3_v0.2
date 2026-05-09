@@ -5,7 +5,7 @@
 // ---------------------------------------------------------------
 // 0. WERSJA APLIKACJI
 // ---------------------------------------------------------------
-const APP_VERSION = '0.7.6';
+const APP_VERSION = '0.7.7';
 
 // Lista rzeczy do spakowania
 const PACK_ITEMS = [
@@ -991,8 +991,8 @@ function positionBatteryFill() {
 
     const fieldLeftPct = 0.097;
     const fieldRightPct = 0.097;
-    const fieldTopPct = 0.13;
-    const fieldBottomPct = 0.035;
+    const fieldTopPct = 0.20;     // pole zaczyna się na 20% od góry obrazka
+    const fieldBottomPct = 0.06;  // pole kończy się 6% od dołu obrazka
 
     const fillLeft = offsetX + renderedW * fieldLeftPct;
     const fillTop = offsetY + renderedH * fieldTopPct;
