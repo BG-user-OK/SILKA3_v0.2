@@ -5,7 +5,7 @@
 // ---------------------------------------------------------------
 // 0. WERSJA APLIKACJI
 // ---------------------------------------------------------------
-const APP_VERSION = '0.7.3';
+const APP_VERSION = '0.7.4';
 
 // Lista rzeczy do spakowania
 const PACK_ITEMS = [
@@ -917,18 +917,18 @@ function startRestCountdown() {
   // Krótka wibracja jako "registration" user gesture dla późniejszej wibracji
   vibratePhone(50);
 
-  // Wybuduj baterię — kreski w środku
-  buildBatteryFill(seconds);
-  // Pokaż info o seriach (kropki)
-  buildBatterySetsInfo(ex);
-
+  // NAJPIERW pokaż overlay żeby elementy miały wymiary (getBoundingClientRect != 0)
   const overlay = document.getElementById('restOverlay');
   overlay.hidden = false;
-  overlay.onclick = null;  // overlay sam nie reaguje, tylko strefa stop
+  overlay.onclick = null;
   document.getElementById('batteryStopZone').onclick = (e) => {
     e.stopPropagation();
     skipRest();
   };
+
+  // Teraz buduj zawartość — element jest widoczny więc ma wymiary
+  buildBatteryFill(seconds);
+  buildBatterySetsInfo(ex);
 
   updateRestUI();
   if (restInterval) clearInterval(restInterval);
@@ -966,12 +966,26 @@ function positionBatteryFill() {
   const setPosition = () => {
     const frameRect = frame.getBoundingClientRect();
     const imgRect = img.getBoundingClientRect();
-    if (imgRect.width === 0 || imgRect.height === 0) return;
 
     const fieldLeftPct = 0.097;
     const fieldRightPct = 0.097;
     const fieldTopPct = 0.13;
     const fieldBottomPct = 0.035;
+
+    // Wyświetl debug ZAWSZE — nawet gdy wymiary 0
+    let dbg = document.getElementById('batteryDebug');
+    if (!dbg) {
+      dbg = document.createElement('div');
+      dbg.id = 'batteryDebug';
+      dbg.style.cssText = 'position:fixed;top:60px;left:8px;right:8px;z-index:9999;background:rgba(0,0,0,0.9);color:#0f0;font-family:monospace;font-size:11px;padding:6px;border:2px solid yellow;border-radius:6px;line-height:1.4;pointer-events:none;';
+      document.body.appendChild(dbg);
+    }
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    dbg.innerHTML = `WIN: ${w}×${h}<br>FRAME: ${Math.round(frameRect.width)}×${Math.round(frameRect.height)} @ (${Math.round(frameRect.left)}, ${Math.round(frameRect.top)})<br>IMG: ${Math.round(imgRect.width)}×${Math.round(imgRect.height)} @ (${Math.round(imgRect.left)}, ${Math.round(imgRect.top)})<br>NATURAL: ${img.naturalWidth}×${img.naturalHeight}<br>RATIO: ${imgRect.height ? (imgRect.width/imgRect.height).toFixed(3) : 'N/A'} (target 0.449)`;
+
+    // Jeśli wymiary zerowe, nie ustawiaj pozycji ale debug już pokazany
+    if (imgRect.width === 0 || imgRect.height === 0) return;
 
     const fillLeft = imgRect.left - frameRect.left + imgRect.width * fieldLeftPct;
     const fillTop = imgRect.top - frameRect.top + imgRect.height * fieldTopPct;
@@ -982,31 +996,19 @@ function positionBatteryFill() {
     fill.style.top = fillTop + 'px';
     fill.style.right = fillRight + 'px';
     fill.style.bottom = fillBottom + 'px';
-
-    // DEBUG — wyświetl wszystkie pomiary na ekranie
-    let dbg = document.getElementById('batteryDebug');
-    if (!dbg) {
-      dbg = document.createElement('div');
-      dbg.id = 'batteryDebug';
-      dbg.style.cssText = 'position:fixed;top:60px;left:8px;right:8px;z-index:99;background:rgba(0,0,0,0.85);color:#0f0;font-family:monospace;font-size:11px;padding:6px;border:2px solid yellow;border-radius:6px;line-height:1.4;pointer-events:none;';
-      document.body.appendChild(dbg);
-    }
-    const w = window.innerWidth;
-    const h = window.innerHeight;
-    dbg.innerHTML = `
-WIN: ${w}×${h}<br>
-FRAME: ${Math.round(frameRect.width)}×${Math.round(frameRect.height)} @ (${Math.round(frameRect.left)}, ${Math.round(frameRect.top)})<br>
-IMG: ${Math.round(imgRect.width)}×${Math.round(imgRect.height)} @ (${Math.round(imgRect.left)}, ${Math.round(imgRect.top)})<br>
-NATURAL: ${img.naturalWidth}×${img.naturalHeight}<br>
-FILL: L=${Math.round(fillLeft)} T=${Math.round(fillTop)} R=${Math.round(fillRight)} B=${Math.round(fillBottom)}<br>
-RATIO: ${(imgRect.width/imgRect.height).toFixed(3)} (target 0.449)
-    `;
   };
 
+  // Wywołaj przez requestAnimationFrame — czeka na layout
+  requestAnimationFrame(() => {
+    requestAnimationFrame(setPosition);
+  });
+
   if (img.complete && img.naturalWidth > 0) {
-    setPosition();
+    requestAnimationFrame(() => requestAnimationFrame(setPosition));
   } else {
-    img.addEventListener('load', setPosition, { once: true });
+    img.addEventListener('load', () => {
+      requestAnimationFrame(() => requestAnimationFrame(setPosition));
+    }, { once: true });
   }
   window.addEventListener('resize', setPosition);
 }
