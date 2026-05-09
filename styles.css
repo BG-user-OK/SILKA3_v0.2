@@ -1224,12 +1224,8 @@ input { font-family: inherit; }
   overflow: hidden;
   border-radius: 4px;
   pointer-events: none;
-  /* fallback gdyby JS się nie wykonał */
-  left: 14%;
-  right: 14%;
-  top: 17%;
-  bottom: 6%;
-  /* DEBUG: czerwona ramka pokaże gdzie naprawdę jest pole */
+  /* Brak fallback values — JS ustawi pozycję inline */
+  /* DEBUG */
   outline: 4px solid red;
   outline-offset: -4px;
   background: rgba(255, 0, 0, 0.1);
