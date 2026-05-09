@@ -5,7 +5,7 @@
 // ---------------------------------------------------------------
 // 0. WERSJA APLIKACJI
 // ---------------------------------------------------------------
-const APP_VERSION = '0.7.4';
+const APP_VERSION = '0.7.5';
 
 // Lista rzeczy do spakowania
 const PACK_ITEMS = [
@@ -965,14 +965,41 @@ function positionBatteryFill() {
 
   const setPosition = () => {
     const frameRect = frame.getBoundingClientRect();
-    const imgRect = img.getBoundingClientRect();
+    const containerW = frameRect.width;
+    const containerH = frameRect.height;
+
+    // Wyliczamy rzeczywisty rozmiar i pozycję obrazka po object-fit:contain
+    const natW = img.naturalWidth || 719;
+    const natH = img.naturalHeight || 1600;
+    const natRatio = natW / natH;
+    const containerRatio = containerW / containerH;
+
+    let renderedW, renderedH, offsetX, offsetY;
+    if (containerRatio > natRatio) {
+      // kontener szerszy niż obraz — obraz dopasowuje się do wysokości
+      renderedH = containerH;
+      renderedW = containerH * natRatio;
+      offsetX = (containerW - renderedW) / 2;
+      offsetY = 0;
+    } else {
+      // kontener węższy lub równy — obraz dopasowuje się do szerokości
+      renderedW = containerW;
+      renderedH = containerW / natRatio;
+      offsetX = 0;
+      offsetY = (containerH - renderedH) / 2;
+    }
 
     const fieldLeftPct = 0.097;
     const fieldRightPct = 0.097;
     const fieldTopPct = 0.13;
     const fieldBottomPct = 0.035;
 
-    // Wyświetl debug ZAWSZE — nawet gdy wymiary 0
+    const fillLeft = offsetX + renderedW * fieldLeftPct;
+    const fillTop = offsetY + renderedH * fieldTopPct;
+    const fillRight = offsetX + renderedW * fieldRightPct;
+    const fillBottom = offsetY + renderedH * fieldBottomPct;
+
+    // Debug
     let dbg = document.getElementById('batteryDebug');
     if (!dbg) {
       dbg = document.createElement('div');
@@ -980,28 +1007,13 @@ function positionBatteryFill() {
       dbg.style.cssText = 'position:fixed;top:60px;left:8px;right:8px;z-index:9999;background:rgba(0,0,0,0.9);color:#0f0;font-family:monospace;font-size:11px;padding:6px;border:2px solid yellow;border-radius:6px;line-height:1.4;pointer-events:none;';
       document.body.appendChild(dbg);
     }
-    const w = window.innerWidth;
-    const h = window.innerHeight;
-    dbg.innerHTML = `WIN: ${w}×${h}<br>FRAME: ${Math.round(frameRect.width)}×${Math.round(frameRect.height)} @ (${Math.round(frameRect.left)}, ${Math.round(frameRect.top)})<br>IMG: ${Math.round(imgRect.width)}×${Math.round(imgRect.height)} @ (${Math.round(imgRect.left)}, ${Math.round(imgRect.top)})<br>NATURAL: ${img.naturalWidth}×${img.naturalHeight}<br>RATIO: ${imgRect.height ? (imgRect.width/imgRect.height).toFixed(3) : 'N/A'} (target 0.449)`;
-
-    // Jeśli wymiary zerowe, nie ustawiaj pozycji ale debug już pokazany
-    if (imgRect.width === 0 || imgRect.height === 0) return;
-
-    const fillLeft = imgRect.left - frameRect.left + imgRect.width * fieldLeftPct;
-    const fillTop = imgRect.top - frameRect.top + imgRect.height * fieldTopPct;
-    const fillRight = (frameRect.right - imgRect.right) + imgRect.width * fieldRightPct;
-    const fillBottom = (frameRect.bottom - imgRect.bottom) + imgRect.height * fieldBottomPct;
+    dbg.innerHTML = `WIN: ${window.innerWidth}×${window.innerHeight}<br>FRAME: ${Math.round(containerW)}×${Math.round(containerH)}<br>RENDERED: ${Math.round(renderedW)}×${Math.round(renderedH)} @ offset (${Math.round(offsetX)}, ${Math.round(offsetY)})<br>NAT: ${natW}×${natH}<br>FILL: L=${Math.round(fillLeft)} T=${Math.round(fillTop)} R=${Math.round(fillRight)} B=${Math.round(fillBottom)}`;
 
     fill.style.left = fillLeft + 'px';
     fill.style.top = fillTop + 'px';
     fill.style.right = fillRight + 'px';
     fill.style.bottom = fillBottom + 'px';
   };
-
-  // Wywołaj przez requestAnimationFrame — czeka na layout
-  requestAnimationFrame(() => {
-    requestAnimationFrame(setPosition);
-  });
 
   if (img.complete && img.naturalWidth > 0) {
     requestAnimationFrame(() => requestAnimationFrame(setPosition));
