@@ -1192,6 +1192,9 @@ input { font-family: inherit; }
   margin: 0 auto;
   flex-shrink: 0;
   flex-grow: 0;
+  /* DEBUG */
+  outline: 3px solid magenta;
+  outline-offset: -3px;
 }
 
 .battery-img {
@@ -1203,6 +1206,9 @@ input { font-family: inherit; }
   display: block;
   z-index: 1;
   pointer-events: none;
+  /* DEBUG */
+  outline: 3px solid orange;
+  outline-offset: -3px;
 }
 
 /* Wypełnienie zielone — POZYCJONOWANE PRZEZ JS PO ZAŁADOWANIU OBRAZKA.
@@ -1222,6 +1228,10 @@ input { font-family: inherit; }
   right: 14%;
   top: 17%;
   bottom: 6%;
+  /* DEBUG: czerwona ramka pokaże gdzie naprawdę jest pole */
+  outline: 4px solid red;
+  outline-offset: -4px;
+  background: rgba(255, 0, 0, 0.1);
 }
 .battery-fill__bar {
   width: 100%;
