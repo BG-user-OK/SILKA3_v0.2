@@ -1187,10 +1187,11 @@ input { font-family: inherit; }
 
 .battery-frame {
   position: relative;
-  /* Frame ma ratio = obrazka (719/1600 = 0.449) — wtedy obraz wypełnia frame */
-  height: 95vh;
-  width: calc(95vh * 0.449);
-  margin: 0 auto;
+  /* Frame większy niż 95vh żeby bateria w obrazku (która zajmuje ~70-80% obrazka)
+     wypełniała większą część ekranu */
+  height: 130vh;
+  width: calc(130vh * 0.449);
+  margin: -15vh auto 0;
   flex-shrink: 0;
   flex-grow: 0;
   /* DEBUG */
