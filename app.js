@@ -5,7 +5,7 @@
 // ---------------------------------------------------------------
 // 0. WERSJA APLIKACJI
 // ---------------------------------------------------------------
-const APP_VERSION = '0.7.7';
+const APP_VERSION = '0.7.8';
 
 // Lista rzeczy do spakowania
 const PACK_ITEMS = [
@@ -1007,7 +1007,12 @@ function positionBatteryFill() {
       dbg.style.cssText = 'position:fixed;top:60px;left:8px;right:8px;z-index:9999;background:rgba(0,0,0,0.9);color:#0f0;font-family:monospace;font-size:11px;padding:6px;border:2px solid yellow;border-radius:6px;line-height:1.4;pointer-events:none;';
       document.body.appendChild(dbg);
     }
-    dbg.innerHTML = `WIN: ${window.innerWidth}×${window.innerHeight}<br>FRAME: ${Math.round(containerW)}×${Math.round(containerH)}<br>RENDERED: ${Math.round(renderedW)}×${Math.round(renderedH)} @ offset (${Math.round(offsetX)}, ${Math.round(offsetY)})<br>NAT: ${natW}×${natH}<br>FILL: L=${Math.round(fillLeft)} T=${Math.round(fillTop)} R=${Math.round(fillRight)} B=${Math.round(fillBottom)}`;
+    const fillRect = fill.getBoundingClientRect();
+    const bars = fill.querySelectorAll('.battery-fill__bar');
+    const filledBars = Array.from(bars).filter(b => b.style.height !== '0' && b.style.height !== '');
+    let firstBarRect = null;
+    if (filledBars.length > 0) firstBarRect = filledBars[0].getBoundingClientRect();
+    dbg.innerHTML = `WIN: ${window.innerWidth}×${window.innerHeight}<br>FRAME: ${Math.round(containerW)}×${Math.round(containerH)}<br>RENDERED: ${Math.round(renderedW)}×${Math.round(renderedH)} @ offset (${Math.round(offsetX)}, ${Math.round(offsetY)})<br>NAT: ${natW}×${natH}<br>FILL set: L=${Math.round(fillLeft)} T=${Math.round(fillTop)} R=${Math.round(fillRight)} B=${Math.round(fillBottom)}<br>FILL real: ${Math.round(fillRect.width)}×${Math.round(fillRect.height)} @ (${Math.round(fillRect.left)}, ${Math.round(fillRect.top)})<br>BAR1: ${firstBarRect ? Math.round(firstBarRect.width)+'×'+Math.round(firstBarRect.height)+' @ ('+Math.round(firstBarRect.left)+','+Math.round(firstBarRect.top)+')' : 'none'}`;
 
     fill.style.left = fillLeft + 'px';
     fill.style.top = fillTop + 'px';
