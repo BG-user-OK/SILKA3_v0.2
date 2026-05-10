@@ -1,5 +1,5 @@
 /* ===========================================================
-   SIŁKA 3 — stylizacja vGPT_1.0.0
+   SIŁKA 3 — stylizacja vGPT_1.0.1
    =========================================================== */
 
 *,
@@ -1184,10 +1184,10 @@ input { font-family: inherit; }
   font-weight: 900;
   font-size: clamp(38px, 11vw, 82px);
   line-height: 1;
-  color: var(--green-glow);
+  color: #44d875;
   text-shadow:
-    0 0 12px rgba(57,255,124,0.7),
-    0 0 36px rgba(57,255,124,0.35);
+    0 0 10px rgba(68,216,117,0.48),
+    0 0 28px rgba(68,216,117,0.20);
 }
 .rest-charge__battery {
   position: relative;
@@ -1205,11 +1205,11 @@ input { font-family: inherit; }
 }
 .rest-charge__fill {
   /* Measured from Photos/Bateria.png, 335x746 px:
-     fill cavity x=57..277, y=134..618, size 221x485 px. */
+     fill cavity widened to x=55..279, y=134..618, size 225x485 px. */
   position: absolute;
-  left: 17.014925%;
+  left: 16.41791%;
   top: 17.962466%;
-  width: 65.970149%;
+  width: 67.164179%;
   height: 65.013405%;
   z-index: 4;
   overflow: hidden;
@@ -1224,26 +1224,48 @@ input { font-family: inherit; }
   bottom: 0;
   height: var(--rest-charge-fill);
   background:
-    linear-gradient(90deg, rgba(210,255,225,0.30), transparent 22%, transparent 74%, rgba(210,255,225,0.18)),
+    linear-gradient(90deg, rgba(195,238,205,0.22), transparent 22%, transparent 74%, rgba(195,238,205,0.14)),
     repeating-linear-gradient(
       to top,
-      rgba(16,185,72,0.96) 0,
-      rgba(42,255,119,0.96) 16px,
-      rgba(19,139,63,0.96) 30px,
+      rgba(12,90,44,0.90) 0,
+      rgba(59,194,101,0.92) 16px,
+      rgba(17,119,56,0.90) 30px,
       transparent 31px,
       transparent 38px
     );
   box-shadow:
-    0 0 18px rgba(57,255,124,0.8),
-    inset 0 0 18px rgba(215,255,226,0.22);
-  transition: height 180ms linear;
+    0 0 9px rgba(68,216,117,0.34),
+    inset 0 0 12px rgba(195,238,205,0.16);
+}
+.rest-charge__fill--pulse .rest-charge__segments {
+  animation: restChargeBrighten 560ms ease-out;
 }
 .rest-charge__segments::after {
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(90deg, rgba(255,255,255,0.26), transparent 32%, transparent 72%, rgba(255,255,255,0.12));
-  opacity: 0.55;
+  background: linear-gradient(90deg, rgba(245,255,248,0.18), transparent 32%, transparent 72%, rgba(245,255,248,0.08));
+  opacity: 0.42;
+}
+@keyframes restChargeBrighten {
+  0% {
+    opacity: 0.28;
+    filter: brightness(0.22) saturate(0.65);
+    box-shadow:
+      0 0 2px rgba(68,216,117,0.08),
+      inset 0 0 7px rgba(195,238,205,0.08);
+  }
+  55% {
+    opacity: 0.82;
+    filter: brightness(0.86) saturate(0.90);
+    box-shadow:
+      0 0 7px rgba(68,216,117,0.24),
+      inset 0 0 10px rgba(195,238,205,0.13);
+  }
+  100% {
+    opacity: 1;
+    filter: brightness(1) saturate(1);
+  }
 }
 .rest-overlay__seconds {
   position: absolute;

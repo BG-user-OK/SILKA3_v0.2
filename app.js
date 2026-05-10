@@ -5,7 +5,7 @@
 // ---------------------------------------------------------------
 // 0. WERSJA APLIKACJI
 // ---------------------------------------------------------------
-const APP_VERSION = 'vGPT_1.0.0';
+const APP_VERSION = 'vGPT_1.0.1';
 
 // Lista rzeczy do spakowania
 const PACK_ITEMS = [
@@ -906,6 +906,7 @@ function setButtonMode(mode) {
 }
 
 let restTotalSeconds = REST_SECONDS;
+let restChargeLastPercent = -1;
 
 function startRestCountdown() {
   // Pobierz długość przerwy z bieżącego ćwiczenia (z fallbackiem na 60s)
@@ -913,6 +914,7 @@ function startRestCountdown() {
   const seconds = Math.max(1, Number((ex && ex.restSeconds) ? ex.restSeconds : REST_SECONDS) || REST_SECONDS);
   restTotalSeconds = seconds;
   restRemaining = seconds;
+  restChargeLastPercent = -1;
   setButtonMode('rest');
   // Krótka wibracja jako "registration" user gesture dla późniejszej wibracji
   vibratePhone(50);
@@ -945,7 +947,15 @@ function updateRestUI() {
   const percentEl = document.getElementById('restChargePercent');
   const fillEl = document.getElementById('restChargeFill');
   if (percentEl) percentEl.textContent = `${percent}%`;
-  if (fillEl) fillEl.style.setProperty('--rest-charge-fill', `${percent}%`);
+  if (fillEl) {
+    fillEl.style.setProperty('--rest-charge-fill', `${percent}%`);
+    if (percent !== restChargeLastPercent) {
+      restChargeLastPercent = percent;
+      fillEl.classList.remove('rest-charge__fill--pulse');
+      fillEl.offsetHeight;
+      fillEl.classList.add('rest-charge__fill--pulse');
+    }
+  }
 }
 
 let restDoneTimer = null;
