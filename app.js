@@ -5,7 +5,7 @@
 // ---------------------------------------------------------------
 // 0. WERSJA APLIKACJI
 // ---------------------------------------------------------------
-const APP_VERSION = '0.5.3';
+const APP_VERSION = 'vGPT_1.0.0';
 
 // Lista rzeczy do spakowania
 const PACK_ITEMS = [
@@ -457,7 +457,7 @@ document.getElementById('btnPackCancel').addEventListener('click', () => {
 
 function renderHome() {
   // Wersja
-  document.getElementById('versionTag').textContent = `v${APP_VERSION}`;
+  document.getElementById('versionTag').textContent = APP_VERSION;
   updateBagIndicator();
 
   // Punkt 25 — obrazek fotokoniec.jpg gdy dziś już jest trening
@@ -905,12 +905,13 @@ function setButtonMode(mode) {
   }
 }
 
-let restTotalSeconds = 60;
+let restTotalSeconds = REST_SECONDS;
 
 function startRestCountdown() {
   // Pobierz długość przerwy z bieżącego ćwiczenia (z fallbackiem na 60s)
   const ex = state.exercises.find(e => e.id === currentExerciseId);
-  const seconds = (ex && ex.restSeconds) ? ex.restSeconds : REST_SECONDS;
+  const seconds = Math.max(1, Number((ex && ex.restSeconds) ? ex.restSeconds : REST_SECONDS) || REST_SECONDS);
+  restTotalSeconds = seconds;
   restRemaining = seconds;
   setButtonMode('rest');
   // Krótka wibracja jako "registration" user gesture dla późniejszej wibracji
@@ -934,8 +935,17 @@ function startRestCountdown() {
   }, 1000);
 }
 function updateRestUI() {
-  document.getElementById('restTimerValue2').textContent = restRemaining;
-  document.getElementById('restOverlaySec').textContent = restRemaining;
+  const safeRemaining = Math.max(0, restRemaining);
+  document.getElementById('restTimerValue2').textContent = safeRemaining;
+  document.getElementById('restOverlaySec').textContent = safeRemaining;
+
+  const total = Math.max(1, restTotalSeconds || REST_SECONDS);
+  const elapsed = Math.min(total, Math.max(0, total - safeRemaining));
+  const percent = Math.min(100, Math.max(0, Math.round((elapsed / total) * 100)));
+  const percentEl = document.getElementById('restChargePercent');
+  const fillEl = document.getElementById('restChargeFill');
+  if (percentEl) percentEl.textContent = `${percent}%`;
+  if (fillEl) fillEl.style.setProperty('--rest-charge-fill', `${percent}%`);
 }
 
 let restDoneTimer = null;

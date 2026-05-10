@@ -1,9 +1,9 @@
-# SIŁKA 3 — PWA (v0.2.0)
+﻿# SIŁKA 3 — PWA (vGPT_1.0.0)
 
 Progresywna aplikacja webowa, instalowalna jak natywna apka na Androidzie.
 Prowadzi przez trening siłowy, zbiera historię, eksportuje do Google Sheets.
 
-## Co nowego w v0.2.0
+## Aktualna wersja vGPT_1.0.0
 
 - 🆕 **Reset treningu** — przytrzymanie START przez 2 s otwiera dialog
   potwierdzenia i kasuje niedokończony trening (historia nietknięta)
@@ -24,19 +24,19 @@ Prowadzi przez trening siłowy, zbiera historię, eksportuje do Google Sheets.
 ## Pliki
 
 ```
-silka3/
+SILKA3_vGPT/
 ├── index.html, styles.css, app.js
 ├── manifest.json, sw.js
 ├── google-apps-script.gs    ← do wklejenia w Apps Script
 ├── icon-192.png, icon-512.png, icon-maskable-512.png
-└── images/1.jpg … 15.jpg
+└── Photos/1.jpg … 17.jpg
 ```
 
 ## Deployment na GitHub Pages
 
-1. `manifest.json` ma już `start_url` i `scope` ustawione na `/Silka3_Opus/`
-2. Wrzuć wszystkie pliki do **głównego katalogu** repo `Silka3_Opus`
-3. Podmień placeholdery w `images/` swoimi zdjęciami
+1. `manifest.json` ma już `start_url` i `scope` ustawione na `/SILKA3_vGPT/`
+2. Wrzuć wszystkie pliki do **głównego katalogu** repo `SILKA3_vGPT`
+3. Podmień pliki w `Photos/` swoimi zdjęciami, jeśli trzeba
 4. Settings → Pages → Source: `main` / `(root)` → Save
 5. Otwórz w Chrome na Androidzie → "Dodaj do ekranu głównego"
 
@@ -65,7 +65,7 @@ silka3/
 
 ### 4. Wprowadź URL do aplikacji
 - Otwórz SIŁKA 3
-- Lewy róg tabeli historii — `v0.2.0`
+- Lewy róg tabeli historii — `vGPT_1.0.0`
 - **Kliknij 3× szybko**
 - Wklej URL → OK
 
@@ -83,7 +83,7 @@ danymi z arkusza. Użyj jeśli edytowałeś coś na komputerze.
 ## Lokalne testy
 
 ```bash
-cd silka3
+cd SILKA3_vGPT
 python3 -m http.server 8080
 ```
 Otwórz `http://localhost:8080`.

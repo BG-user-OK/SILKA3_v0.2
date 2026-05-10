@@ -1,5 +1,5 @@
 /* ===========================================================
-   SIŁKA 3 — stylizacja v0.2.0
+   SIŁKA 3 — stylizacja vGPT_1.0.0
    =========================================================== */
 
 *,
@@ -1155,26 +1155,114 @@ input { font-family: inherit; }
   position: absolute;
   inset: 0;
   z-index: 40;
-  background: rgba(0,0,0,0.94);
+  background: #000;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
+  padding: calc(18px + var(--safe-t)) 24px calc(24px + var(--safe-b));
   animation: restOverlayIn 200ms ease-out;
 }
 @keyframes restOverlayIn {
   from { opacity: 0; }
   to   { opacity: 1; }
 }
-.rest-overlay__seconds {
+.rest-charge {
+  --rest-charge-fill: 0%;
+  width: min(64vw, 335px);
+  width: min(64vw, 36dvh, 335px);
+  max-width: 335px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(14px, 3dvh, 28px);
+  user-select: none;
+}
+.rest-charge__percent {
   font-family: 'Orbitron', sans-serif;
   font-weight: 900;
-  font-size: clamp(120px, 50vw, 280px);
+  font-size: clamp(38px, 11vw, 82px);
   line-height: 1;
-  color: rgba(220,220,230,0.45);
-  text-shadow: 0 0 40px rgba(255,255,255,0.06);
-  letter-spacing: -0.02em;
-  user-select: none;
+  color: var(--green-glow);
+  text-shadow:
+    0 0 12px rgba(57,255,124,0.7),
+    0 0 36px rgba(57,255,124,0.35);
+}
+.rest-charge__battery {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 335 / 746;
+}
+.rest-charge__image {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+}
+.rest-charge__fill {
+  /* Measured from Photos/Bateria.png, 335x746 px:
+     fill cavity x=57..277, y=134..618, size 221x485 px. */
+  position: absolute;
+  left: 17.014925%;
+  top: 17.962466%;
+  width: 65.970149%;
+  height: 65.013405%;
+  z-index: 4;
+  overflow: hidden;
+  border-radius: 4% / 2%;
+  pointer-events: none;
+  mix-blend-mode: screen;
+}
+.rest-charge__segments {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: var(--rest-charge-fill);
+  background:
+    linear-gradient(90deg, rgba(210,255,225,0.30), transparent 22%, transparent 74%, rgba(210,255,225,0.18)),
+    repeating-linear-gradient(
+      to top,
+      rgba(16,185,72,0.96) 0,
+      rgba(42,255,119,0.96) 16px,
+      rgba(19,139,63,0.96) 30px,
+      transparent 31px,
+      transparent 38px
+    );
+  box-shadow:
+    0 0 18px rgba(57,255,124,0.8),
+    inset 0 0 18px rgba(215,255,226,0.22);
+  transition: height 180ms linear;
+}
+.rest-charge__segments::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, rgba(255,255,255,0.26), transparent 32%, transparent 72%, rgba(255,255,255,0.12));
+  opacity: 0.55;
+}
+.rest-overlay__seconds {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+@media (max-height: 700px) {
+  .rest-charge {
+    width: min(58vw, 300px);
+    width: min(58vw, 34dvh, 300px);
+    gap: 12px;
+  }
+  .rest-charge__percent {
+    font-size: clamp(32px, 9vw, 58px);
+  }
 }
 
 /* ==========================================================
