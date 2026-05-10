@@ -5,7 +5,7 @@
 // ---------------------------------------------------------------
 // 0. WERSJA APLIKACJI
 // ---------------------------------------------------------------
-const APP_VERSION = 'vGPT_1.0.1';
+const APP_VERSION = 'vGPT_1.0.2';
 
 // Lista rzeczy do spakowania
 const PACK_ITEMS = [
@@ -906,7 +906,63 @@ function setButtonMode(mode) {
 }
 
 let restTotalSeconds = REST_SECONDS;
-let restChargeLastPercent = -1;
+const REST_CHARGE_MODULE_COUNT = 13;
+let restChargeLoadedModules = 0;
+
+function getRestChargeModules() {
+  const segments = document.querySelector('#restChargeFill .rest-charge__segments');
+  if (!segments) return [];
+  if (segments.children.length !== REST_CHARGE_MODULE_COUNT) {
+    segments.replaceChildren();
+    for (let i = 0; i < REST_CHARGE_MODULE_COUNT; i += 1) {
+      const module = document.createElement('span');
+      module.className = 'rest-charge__module';
+      module.dataset.module = String(i);
+      segments.appendChild(module);
+    }
+  }
+  return Array.from(segments.children);
+}
+
+function resetRestChargeVisual() {
+  restChargeLoadedModules = 0;
+  getRestChargeModules().forEach(module => {
+    module.classList.remove('is-on', 'is-new');
+  });
+}
+
+function updateRestChargeVisual(percent) {
+  const modules = getRestChargeModules();
+  if (!modules.length) return;
+
+  const loadedModules = percent >= 100
+    ? REST_CHARGE_MODULE_COUNT
+    : Math.max(0, Math.floor((percent / 100) * REST_CHARGE_MODULE_COUNT));
+
+  if (loadedModules < restChargeLoadedModules) {
+    resetRestChargeVisual();
+  }
+
+  for (let i = 0; i < modules.length; i += 1) {
+    const module = modules[i];
+    if (i < loadedModules) {
+      const wasLoaded = i < restChargeLoadedModules || module.classList.contains('is-on');
+      module.classList.add('is-on');
+      if (!wasLoaded && percent < 100) {
+        module.classList.remove('is-new');
+        module.offsetHeight;
+        module.classList.add('is-new');
+        module.addEventListener('animationend', () => {
+          module.classList.remove('is-new');
+        }, { once: true });
+      }
+    } else {
+      module.classList.remove('is-on', 'is-new');
+    }
+  }
+
+  restChargeLoadedModules = loadedModules;
+}
 
 function startRestCountdown() {
   // Pobierz długość przerwy z bieżącego ćwiczenia (z fallbackiem na 60s)
@@ -914,7 +970,7 @@ function startRestCountdown() {
   const seconds = Math.max(1, Number((ex && ex.restSeconds) ? ex.restSeconds : REST_SECONDS) || REST_SECONDS);
   restTotalSeconds = seconds;
   restRemaining = seconds;
-  restChargeLastPercent = -1;
+  resetRestChargeVisual();
   setButtonMode('rest');
   // Krótka wibracja jako "registration" user gesture dla późniejszej wibracji
   vibratePhone(50);
@@ -945,17 +1001,8 @@ function updateRestUI() {
   const elapsed = Math.min(total, Math.max(0, total - safeRemaining));
   const percent = Math.min(100, Math.max(0, Math.round((elapsed / total) * 100)));
   const percentEl = document.getElementById('restChargePercent');
-  const fillEl = document.getElementById('restChargeFill');
   if (percentEl) percentEl.textContent = `${percent}%`;
-  if (fillEl) {
-    fillEl.style.setProperty('--rest-charge-fill', `${percent}%`);
-    if (percent !== restChargeLastPercent) {
-      restChargeLastPercent = percent;
-      fillEl.classList.remove('rest-charge__fill--pulse');
-      fillEl.offsetHeight;
-      fillEl.classList.add('rest-charge__fill--pulse');
-    }
-  }
+  updateRestChargeVisual(percent);
 }
 
 let restDoneTimer = null;

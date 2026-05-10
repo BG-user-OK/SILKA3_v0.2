@@ -1,5 +1,5 @@
 /* ===========================================================
-   SIŁKA 3 — stylizacja vGPT_1.0.1
+   SIŁKA 3 — stylizacja vGPT_1.0.2
    =========================================================== */
 
 *,
@@ -1168,7 +1168,6 @@ input { font-family: inherit; }
   to   { opacity: 1; }
 }
 .rest-charge {
-  --rest-charge-fill: 0%;
   width: min(64vw, 335px);
   width: min(64vw, 36dvh, 335px);
   max-width: 335px;
@@ -1202,10 +1201,13 @@ input { font-family: inherit; }
   height: 100%;
   object-fit: contain;
   pointer-events: none;
+  transform: scaleX(1.12);
+  transform-origin: center center;
 }
 .rest-charge__fill {
   /* Measured from Photos/Bateria.png, 335x746 px:
-     fill cavity widened to x=55..279, y=134..618, size 225x485 px. */
+     fill cavity x=55..279, y=134..618, size 225x485 px.
+     vGPT_1.0.2 keeps this fill width fixed and widens only the PNG mask. */
   position: absolute;
   left: 16.41791%;
   top: 17.962466%;
@@ -1219,52 +1221,62 @@ input { font-family: inherit; }
 }
 .rest-charge__segments {
   position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: var(--rest-charge-fill);
+  inset: 0;
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 7px;
+}
+.rest-charge__module {
+  position: relative;
+  flex: 1 1 0;
+  min-height: 0;
+  border-radius: 4px;
+  opacity: 0;
   background:
-    linear-gradient(90deg, rgba(195,238,205,0.22), transparent 22%, transparent 74%, rgba(195,238,205,0.14)),
-    repeating-linear-gradient(
-      to top,
-      rgba(12,90,44,0.90) 0,
-      rgba(59,194,101,0.92) 16px,
-      rgba(17,119,56,0.90) 30px,
-      transparent 31px,
-      transparent 38px
-    );
-  box-shadow:
-    0 0 9px rgba(68,216,117,0.34),
-    inset 0 0 12px rgba(195,238,205,0.16);
+    linear-gradient(90deg, rgba(218,245,225,0.16), transparent 22%, transparent 74%, rgba(218,245,225,0.10)),
+    linear-gradient(180deg, #153820 0%, #2da956 52%, #12642f 100%);
+  box-shadow: none;
+  filter: brightness(0.22) saturate(0.62);
 }
-.rest-charge__fill--pulse .rest-charge__segments {
-  animation: restChargeBrighten 560ms ease-out;
-}
-.rest-charge__segments::after {
+.rest-charge__module::after {
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(90deg, rgba(245,255,248,0.18), transparent 32%, transparent 72%, rgba(245,255,248,0.08));
-  opacity: 0.42;
+  border-radius: inherit;
+  background: linear-gradient(90deg, rgba(245,255,248,0.12), transparent 34%, transparent 72%, rgba(245,255,248,0.06));
+  opacity: 0.34;
 }
-@keyframes restChargeBrighten {
+.rest-charge__module.is-on {
+  opacity: 1;
+  filter: brightness(0.95) saturate(0.88);
+  box-shadow:
+    0 0 5px rgba(68,216,117,0.20),
+    inset 0 0 8px rgba(218,245,225,0.13);
+}
+.rest-charge__module.is-new {
+  animation: restChargeModuleBrighten 620ms ease-out both;
+}
+@keyframes restChargeModuleBrighten {
   0% {
-    opacity: 0.28;
-    filter: brightness(0.22) saturate(0.65);
+    opacity: 0.22;
+    filter: brightness(0.16) saturate(0.45);
     box-shadow:
-      0 0 2px rgba(68,216,117,0.08),
-      inset 0 0 7px rgba(195,238,205,0.08);
+      0 0 0 rgba(68,216,117,0),
+      inset 0 0 5px rgba(218,245,225,0.05);
   }
   55% {
-    opacity: 0.82;
-    filter: brightness(0.86) saturate(0.90);
+    opacity: 0.86;
+    filter: brightness(0.78) saturate(0.75);
     box-shadow:
-      0 0 7px rgba(68,216,117,0.24),
-      inset 0 0 10px rgba(195,238,205,0.13);
+      0 0 4px rgba(68,216,117,0.14),
+      inset 0 0 7px rgba(218,245,225,0.10);
   }
   100% {
     opacity: 1;
-    filter: brightness(1) saturate(1);
+    filter: brightness(0.95) saturate(0.88);
+    box-shadow:
+      0 0 5px rgba(68,216,117,0.20),
+      inset 0 0 8px rgba(218,245,225,0.13);
   }
 }
 .rest-overlay__seconds {
