@@ -5,7 +5,7 @@
 // ---------------------------------------------------------------
 // 0. WERSJA APLIKACJI
 // ---------------------------------------------------------------
-const APP_VERSION = 'vGPT_1.0.2';
+const APP_VERSION = 'vGPT_1.0.3';
 
 // Lista rzeczy do spakowania
 const PACK_ITEMS = [
@@ -933,11 +933,12 @@ function resetRestChargeVisual() {
 
 function updateRestChargeVisual(percent) {
   const modules = getRestChargeModules();
-  if (!modules.length) return;
+  if (!modules.length) return 0;
 
   const loadedModules = percent >= 100
     ? REST_CHARGE_MODULE_COUNT
     : Math.max(0, Math.floor((percent / 100) * REST_CHARGE_MODULE_COUNT));
+  const chargePercent = Math.round((loadedModules / REST_CHARGE_MODULE_COUNT) * 100);
 
   if (loadedModules < restChargeLoadedModules) {
     resetRestChargeVisual();
@@ -962,6 +963,7 @@ function updateRestChargeVisual(percent) {
   }
 
   restChargeLoadedModules = loadedModules;
+  return chargePercent;
 }
 
 function startRestCountdown() {
@@ -1000,9 +1002,9 @@ function updateRestUI() {
   const total = Math.max(1, restTotalSeconds || REST_SECONDS);
   const elapsed = Math.min(total, Math.max(0, total - safeRemaining));
   const percent = Math.min(100, Math.max(0, Math.round((elapsed / total) * 100)));
+  const chargePercent = updateRestChargeVisual(percent);
   const percentEl = document.getElementById('restChargePercent');
-  if (percentEl) percentEl.textContent = `${percent}%`;
-  updateRestChargeVisual(percent);
+  if (percentEl) percentEl.textContent = `${chargePercent}%`;
 }
 
 let restDoneTimer = null;

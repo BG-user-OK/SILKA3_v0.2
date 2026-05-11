@@ -1,5 +1,5 @@
 /* ===========================================================
-   SIŁKA 3 — stylizacja vGPT_1.0.2
+   SIŁKA 3 — stylizacja vGPT_1.0.3
    =========================================================== */
 
 *,
@@ -1189,9 +1189,13 @@ input { font-family: inherit; }
     0 0 28px rgba(68,216,117,0.20);
 }
 .rest-charge__battery {
+  --rest-charge-shell-scale-x: 1.3;
+  --rest-charge-shell-side-mask: 27%;
   position: relative;
   width: 100%;
   aspect-ratio: 335 / 746;
+  overflow: visible;
+  isolation: isolate;
 }
 .rest-charge__image {
   position: absolute;
@@ -1201,13 +1205,29 @@ input { font-family: inherit; }
   height: 100%;
   object-fit: contain;
   pointer-events: none;
-  transform: scaleX(1.12);
+  transform: scaleX(var(--rest-charge-shell-scale-x));
   transform-origin: center center;
+}
+.rest-charge__battery::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+  background: url("Photos/Bateria.png") center / 100% 100% no-repeat;
+  transform: scaleX(var(--rest-charge-shell-scale-x));
+  transform-origin: center center;
+  -webkit-mask:
+    linear-gradient(#000 0 0) left / var(--rest-charge-shell-side-mask) 100% no-repeat,
+    linear-gradient(#000 0 0) right / var(--rest-charge-shell-side-mask) 100% no-repeat;
+  mask:
+    linear-gradient(#000 0 0) left / var(--rest-charge-shell-side-mask) 100% no-repeat,
+    linear-gradient(#000 0 0) right / var(--rest-charge-shell-side-mask) 100% no-repeat;
 }
 .rest-charge__fill {
   /* Measured from Photos/Bateria.png, 335x746 px:
      fill cavity x=55..279, y=134..618, size 225x485 px.
-     vGPT_1.0.2 keeps this fill width fixed and widens only the PNG mask. */
+     vGPT_1.0.3 keeps this fill width fixed and widens only the PNG shell. */
   position: absolute;
   left: 16.41791%;
   top: 17.962466%;
