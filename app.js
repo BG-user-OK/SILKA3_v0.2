@@ -5,7 +5,7 @@
 // ---------------------------------------------------------------
 // 0. WERSJA APLIKACJI
 // ---------------------------------------------------------------
-const APP_VERSION = 'vGPT_1.0.3';
+const APP_VERSION = 'vGPT_1.0.4';
 
 // Lista rzeczy do spakowania
 const PACK_ITEMS = [
@@ -1008,20 +1008,44 @@ function updateRestUI() {
 }
 
 let restDoneTimer = null;
+let restCompletionHoldTimer = null;
+let restCompletionActive = false;
+
+function clearRestCompletionTimers() {
+  if (restCompletionHoldTimer) {
+    clearTimeout(restCompletionHoldTimer);
+    restCompletionHoldTimer = null;
+  }
+  if (restDoneTimer) {
+    clearTimeout(restDoneTimer);
+    restDoneTimer = null;
+  }
+}
 function finishRestCountdown() {
   if (restInterval) clearInterval(restInterval);
   restInterval = null;
-  // Ukryj overlay odliczania
-  document.getElementById('restOverlay').hidden = true;
+  // Zostaw pełną baterię na ekranie przed fazą migania.
+  restRemaining = 0;
+  updateRestUI();
+  restCompletionActive = true;
+  const overlay = document.getElementById('restOverlay');
+  overlay.hidden = false;
+  overlay.onclick = () => endRestDoneAndStandby();
   setButtonMode('green');
-  // Wibracja — wzór mocny: 5 silnych pulsów. Pixel 8 Pro: powtórz po 200ms dla pewności.
+  clearRestCompletionTimers();
+  restCompletionHoldTimer = setTimeout(startRestCompletionFlash, 3000);
+}
+function startRestCompletionFlash() {
+  restCompletionHoldTimer = null;
+  if (!restCompletionActive) return;
+
   vibratePhone([500, 200, 500, 200, 500, 200, 700]);
-  // Backup — drugi wzór po krótkiej chwili (czasem pierwsza ginie przez agresywne power-saving)
-  setTimeout(() => vibratePhone([300, 150, 300]), 100);
-  // Migający zielony — 6 rozbłysków = ~3.6s zsynchronizowanych, lub klik
+  setTimeout(() => {
+    if (restCompletionActive) vibratePhone([300, 150, 300]);
+  }, 100);
+
   const flash = document.getElementById('restDoneOverlay');
   flash.hidden = false;
-  // Reset animacji CSS
   flash.style.animation = 'none';
   flash.offsetHeight;
   flash.style.animation = '';
@@ -1030,15 +1054,19 @@ function finishRestCountdown() {
   restDoneTimer = setTimeout(endRestDoneAndStandby, 3700);
 }
 function endRestDoneAndStandby() {
-  // Po rozbłysku → przejście w tryb czarnego ekranu czuwania
-  if (restDoneTimer) { clearTimeout(restDoneTimer); restDoneTimer = null; }
+  // Po rozbłysku lub kliknięciu wróć od razu do ekranu ćwiczenia.
+  clearRestCompletionTimers();
+  restCompletionActive = false;
+  document.getElementById('restOverlay').hidden = true;
   document.getElementById('restDoneOverlay').hidden = true;
-  showStandbyOverlay();
+  hideStandbyOverlay();
+  setButtonMode('green');
 }
 function endRestCountdown() {
   // używane do twardego anulowania (np. powrót na home)
   if (restInterval) { clearInterval(restInterval); restInterval = null; }
-  if (restDoneTimer) { clearTimeout(restDoneTimer); restDoneTimer = null; }
+  clearRestCompletionTimers();
+  restCompletionActive = false;
   document.getElementById('restOverlay').hidden = true;
   document.getElementById('restDoneOverlay').hidden = true;
   hideStandbyOverlay();
@@ -1046,7 +1074,10 @@ function endRestCountdown() {
 }
 function skipRest() {
   if (restInterval) { clearInterval(restInterval); restInterval = null; }
+  clearRestCompletionTimers();
+  restCompletionActive = false;
   document.getElementById('restOverlay').hidden = true;
+  document.getElementById('restDoneOverlay').hidden = true;
   setButtonMode('green');
 }
 

@@ -1,5 +1,5 @@
 /* ===========================================================
-   SIŁKA 3 — stylizacja vGPT_1.0.3
+   SIŁKA 3 — stylizacja vGPT_1.0.4
    =========================================================== */
 
 *,
@@ -1226,12 +1226,12 @@ input { font-family: inherit; }
 }
 .rest-charge__fill {
   /* Measured from Photos/Bateria.png, 335x746 px:
-     fill cavity x=55..279, y=134..618, size 225x485 px.
-     vGPT_1.0.3 keeps this fill width fixed and widens only the PNG shell. */
+     fill cavity x=55..289, y=134..618, size 235x485 px.
+     vGPT_1.0.4 keeps the left/top/height fixed and extends only the right edge. */
   position: absolute;
   left: 16.41791%;
   top: 17.962466%;
-  width: 67.164179%;
+  width: 70.149254%;
   height: 65.013405%;
   z-index: 4;
   overflow: hidden;
