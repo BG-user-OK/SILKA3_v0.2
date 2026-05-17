@@ -5,7 +5,7 @@
 // ---------------------------------------------------------------
 // 0. WERSJA APLIKACJI
 // ---------------------------------------------------------------
-const APP_VERSION = 'vGPT_1.0.9';
+const APP_VERSION = 'vGPT_1.0.10';
 
 // Lista rzeczy do spakowania
 const PACK_ITEMS = [
@@ -1215,11 +1215,9 @@ function revealNextExerciseFromBelow(currentExId) {
   requestAnimationFrame(() => {
     animateGreenWipe(wipe, 0, maxRadius, 900, () => {
       goToNextExerciseOrList(currentExId);
-      requestAnimationFrame(() => {
-        animateGreenWipe(wipe, maxRadius, 0, 1000, () => {
-          document.body.classList.remove('exercise-transitioning');
-          transition.remove();
-        });
+      animateGreenWipe(wipe, maxRadius, 0, 1000, () => {
+        document.body.classList.remove('exercise-transitioning');
+        transition.remove();
       });
     });
   });
