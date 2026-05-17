@@ -5,7 +5,7 @@
 // ---------------------------------------------------------------
 // 0. WERSJA APLIKACJI
 // ---------------------------------------------------------------
-const APP_VERSION = 'vGPT_1.0.6';
+const APP_VERSION = 'vGPT_1.0.7';
 
 // Lista rzeczy do spakowania
 const PACK_ITEMS = [
@@ -1176,18 +1176,18 @@ function setRevealMask(layer, radius) {
 
 function animateExerciseRevealMask(layer, onDone) {
   const canMask = ('webkitMaskImage' in layer.style) || ('maskImage' in layer.style);
+  const duration = 2800;
 
   if (!canMask) {
-    layer.style.setProperty('transition', 'opacity 1650ms ease-out', 'important');
+    layer.style.setProperty('transition', `opacity ${duration}ms ease-out`, 'important');
     requestAnimationFrame(() => {
       layer.style.setProperty('opacity', '0', 'important');
     });
-    setTimeout(onDone, 1700);
+    setTimeout(onDone, duration + 80);
     return;
   }
 
   const maxRadius = Math.hypot(window.innerWidth, window.innerHeight) + 160;
-  const duration = 1650;
   const start = performance.now();
   setRevealMask(layer, 0);
 
@@ -1214,33 +1214,48 @@ function revealNextExerciseFromBelow(currentExId) {
     return;
   }
 
-  document.querySelectorAll('.exercise-reveal-layer, .exercise-reveal-fx').forEach(el => el.remove());
+  document.querySelectorAll('.exercise-transition, .exercise-reveal-layer, .exercise-reveal-fx').forEach(el => el.remove());
 
-  const topLayer = screen.cloneNode(true);
-  stripIdsFromClone(topLayer);
-  topLayer.classList.add('exercise-reveal-layer');
-  topLayer.hidden = false;
-  setRevealMask(topLayer, 0);
-  document.body.appendChild(topLayer);
+  const transition = document.createElement('div');
+  transition.className = 'exercise-transition';
 
-  const fx = document.createElement('div');
-  fx.className = 'exercise-reveal-fx';
-  fx.innerHTML = '<div class="exercise-reveal-fx__flash"></div><div class="exercise-reveal-fx__wave"></div>';
-  document.body.appendChild(fx);
+  const oldLayer = screen.cloneNode(true);
+  stripIdsFromClone(oldLayer);
+  oldLayer.classList.add('exercise-transition__layer', 'exercise-transition__layer--old');
+  oldLayer.hidden = false;
+  setRevealMask(oldLayer, 0);
+  transition.appendChild(oldLayer);
+  document.body.appendChild(transition);
 
+  document.body.classList.add('exercise-transitioning');
+
+  // Paint the old completed exercise first, then prepare the next exercise underneath.
   requestAnimationFrame(() => {
-    topLayer.getBoundingClientRect();
+    oldLayer.getBoundingClientRect();
     setTimeout(() => {
       goToNextExerciseOrList(currentExId);
 
       requestAnimationFrame(() => {
-        fx.classList.add('exercise-reveal-fx--run');
-        animateExerciseRevealMask(topLayer, () => {
-          topLayer.remove();
-          setTimeout(() => fx.remove(), 520);
+        const newLayer = screen.cloneNode(true);
+        stripIdsFromClone(newLayer);
+        newLayer.classList.add('exercise-transition__layer', 'exercise-transition__layer--new');
+        newLayer.hidden = false;
+        transition.insertBefore(newLayer, oldLayer);
+
+        const fx = document.createElement('div');
+        fx.className = 'exercise-reveal-fx';
+        fx.innerHTML = '<div class="exercise-reveal-fx__flash"></div><div class="exercise-reveal-fx__wave"></div>';
+        transition.appendChild(fx);
+
+        requestAnimationFrame(() => {
+          fx.classList.add('exercise-reveal-fx--run');
+          animateExerciseRevealMask(oldLayer, () => {
+            document.body.classList.remove('exercise-transitioning');
+            setTimeout(() => transition.remove(), 620);
+          });
         });
       });
-    }, 90);
+    }, 180);
   });
 }
 
