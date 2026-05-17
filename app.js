@@ -5,7 +5,7 @@
 // ---------------------------------------------------------------
 // 0. WERSJA APLIKACJI
 // ---------------------------------------------------------------
-const APP_VERSION = 'vGPT_1.0.5';
+const APP_VERSION = 'vGPT_1.0.6';
 
 // Lista rzeczy do spakowania
 const PACK_ITEMS = [
@@ -1175,26 +1175,27 @@ function setRevealMask(layer, radius) {
 }
 
 function animateExerciseRevealMask(layer, onDone) {
-  const canMask = window.CSS && (
-    CSS.supports('-webkit-mask-image', 'radial-gradient(circle, transparent 0, #000 1px)') ||
-    CSS.supports('mask-image', 'radial-gradient(circle, transparent 0, #000 1px)')
-  );
+  const canMask = ('webkitMaskImage' in layer.style) || ('maskImage' in layer.style);
 
   if (!canMask) {
-    layer.style.setProperty('transition', 'opacity 1050ms ease-out', 'important');
-    layer.style.setProperty('opacity', '0', 'important');
-    setTimeout(onDone, 1100);
+    layer.style.setProperty('transition', 'opacity 1650ms ease-out', 'important');
+    requestAnimationFrame(() => {
+      layer.style.setProperty('opacity', '0', 'important');
+    });
+    setTimeout(onDone, 1700);
     return;
   }
 
-  const maxRadius = Math.hypot(window.innerWidth, window.innerHeight);
-  const duration = 1180;
+  const maxRadius = Math.hypot(window.innerWidth, window.innerHeight) + 160;
+  const duration = 1650;
   const start = performance.now();
   setRevealMask(layer, 0);
 
   function frame(now) {
     const t = Math.min(1, (now - start) / duration);
-    const eased = 1 - Math.pow(1 - t, 3);
+    const eased = t < 0.5
+      ? 4 * t * t * t
+      : 1 - Math.pow(-2 * t + 2, 3) / 2;
     setRevealMask(layer, maxRadius * eased);
     if (t < 1) {
       requestAnimationFrame(frame);
@@ -1219,6 +1220,7 @@ function revealNextExerciseFromBelow(currentExId) {
   stripIdsFromClone(topLayer);
   topLayer.classList.add('exercise-reveal-layer');
   topLayer.hidden = false;
+  setRevealMask(topLayer, 0);
   document.body.appendChild(topLayer);
 
   const fx = document.createElement('div');
@@ -1226,14 +1228,19 @@ function revealNextExerciseFromBelow(currentExId) {
   fx.innerHTML = '<div class="exercise-reveal-fx__flash"></div><div class="exercise-reveal-fx__wave"></div>';
   document.body.appendChild(fx);
 
-  goToNextExerciseOrList(currentExId);
-
   requestAnimationFrame(() => {
-    fx.classList.add('exercise-reveal-fx--run');
-    animateExerciseRevealMask(topLayer, () => {
-      topLayer.remove();
-      setTimeout(() => fx.remove(), 360);
-    });
+    topLayer.getBoundingClientRect();
+    setTimeout(() => {
+      goToNextExerciseOrList(currentExId);
+
+      requestAnimationFrame(() => {
+        fx.classList.add('exercise-reveal-fx--run');
+        animateExerciseRevealMask(topLayer, () => {
+          topLayer.remove();
+          setTimeout(() => fx.remove(), 520);
+        });
+      });
+    }, 90);
   });
 }
 
