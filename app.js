@@ -5,7 +5,7 @@
 // ---------------------------------------------------------------
 // 0. WERSJA APLIKACJI
 // ---------------------------------------------------------------
-const APP_VERSION = 'vGPT_1.0.8';
+const APP_VERSION = 'vGPT_1.0.9';
 
 // Lista rzeczy do spakowania
 const PACK_ITEMS = [
@@ -1162,35 +1162,28 @@ function goToNextExerciseOrList(currentExId) {
   }
 }
 
-function stripIdsFromClone(root) {
-  root.removeAttribute('id');
-  root.querySelectorAll('[id]').forEach(el => el.removeAttribute('id'));
-}
-
-function setRevealClip(layer, radius) {
+function setGreenWipeRadius(wipe, radius) {
   const r = Math.max(0, radius);
-  const clip = `circle(${r}px at 50% 50%)`;
-  layer.style.clipPath = clip;
-  layer.style.webkitClipPath = clip;
+  const size = `${r * 2}px`;
+  wipe.style.width = size;
+  wipe.style.height = size;
 }
 
-function animateExerciseRevealClip(layer, onDone) {
-  const duration = 2800;
-  const maxRadius = Math.hypot(window.innerWidth, window.innerHeight) + 180;
+function animateGreenWipe(wipe, fromRadius, toRadius, duration, onDone) {
   const start = performance.now();
-  setRevealClip(layer, 0);
+  setGreenWipeRadius(wipe, fromRadius);
 
   function frame(now) {
     const t = Math.min(1, (now - start) / duration);
     const eased = t < 0.5
       ? 4 * t * t * t
       : 1 - Math.pow(-2 * t + 2, 3) / 2;
-    setRevealClip(layer, maxRadius * eased);
+    setGreenWipeRadius(wipe, fromRadius + ((toRadius - fromRadius) * eased));
     if (t < 1) {
       requestAnimationFrame(frame);
     } else {
-      setRevealClip(layer, maxRadius);
-      onDone();
+      setGreenWipeRadius(wipe, toRadius);
+      if (onDone) onDone();
     }
   }
 
@@ -1204,48 +1197,31 @@ function revealNextExerciseFromBelow(currentExId) {
     return;
   }
 
-  document.querySelectorAll('.exercise-transition, .exercise-reveal-fx').forEach(el => el.remove());
+  document.querySelectorAll('.exercise-transition').forEach(el => el.remove());
 
   const transition = document.createElement('div');
-  transition.className = 'exercise-transition';
+  transition.className = 'exercise-transition exercise-transition--green';
 
-  const oldLayer = screen.cloneNode(true);
-  stripIdsFromClone(oldLayer);
-  oldLayer.classList.add('exercise-transition__layer', 'exercise-transition__layer--old');
-  oldLayer.hidden = false;
-  transition.appendChild(oldLayer);
+  const wipe = document.createElement('div');
+  wipe.className = 'exercise-green-wipe';
+  transition.appendChild(wipe);
   document.body.appendChild(transition);
 
   document.body.classList.add('exercise-transitioning');
 
-  // Paint the old completed exercise first, then prepare the next exercise underneath.
+  const maxRadius = Math.ceil(Math.hypot(window.innerWidth, window.innerHeight)) + 80;
+  setGreenWipeRadius(wipe, 0);
+
   requestAnimationFrame(() => {
-    oldLayer.getBoundingClientRect();
-    setTimeout(() => {
+    animateGreenWipe(wipe, 0, maxRadius, 900, () => {
       goToNextExerciseOrList(currentExId);
-
       requestAnimationFrame(() => {
-        const newLayer = screen.cloneNode(true);
-        stripIdsFromClone(newLayer);
-        newLayer.classList.add('exercise-transition__layer', 'exercise-transition__layer--new');
-        newLayer.hidden = false;
-        setRevealClip(newLayer, 0);
-        transition.appendChild(newLayer);
-
-        const fx = document.createElement('div');
-        fx.className = 'exercise-reveal-fx';
-        fx.innerHTML = '<div class="exercise-reveal-fx__flash"></div><div class="exercise-reveal-fx__wave"></div>';
-        transition.appendChild(fx);
-
-        requestAnimationFrame(() => {
-          fx.classList.add('exercise-reveal-fx--run');
-          animateExerciseRevealClip(newLayer, () => {
-            document.body.classList.remove('exercise-transitioning');
-            transition.remove();
-          });
+        animateGreenWipe(wipe, maxRadius, 0, 1000, () => {
+          document.body.classList.remove('exercise-transitioning');
+          transition.remove();
         });
       });
-    }, 180);
+    });
   });
 }
 

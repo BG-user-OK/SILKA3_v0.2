@@ -1,5 +1,5 @@
 /* ===========================================================
-   SIŁKA 3 — stylizacja vGPT_1.0.8
+   SIŁKA 3 — stylizacja vGPT_1.0.9
    =========================================================== */
 
 *,
@@ -1382,73 +1382,20 @@ body.exercise-transitioning #app {
   pointer-events: auto;
   overflow: hidden;
   cursor: default;
-  background: var(--bg);
+  background: transparent;
 }
-.exercise-transition__layer {
-  position: absolute !important;
-  inset: 0;
-  z-index: 1;
-  opacity: 1 !important;
-  pointer-events: none !important;
-  transition: none !important;
-  background: var(--bg);
-  will-change: clip-path;
-}
-.exercise-transition__layer--new {
-  z-index: 2;
-  clip-path: circle(0 at 50% 50%);
-  -webkit-clip-path: circle(0 at 50% 50%);
-}
-.exercise-transition__layer--old {
-  z-index: 1;
-}
-.exercise-transition__layer * {
-  pointer-events: none !important;
-}
-.exercise-reveal-fx {
-  position: absolute;
-  inset: 0;
-  z-index: 3;
-  pointer-events: auto;
-  overflow: hidden;
-  cursor: default;
-}
-.exercise-reveal-fx__flash,
-.exercise-reveal-fx__wave {
+.exercise-green-wipe {
   position: absolute;
   left: 50%;
   top: 50%;
-  width: 48vmax;
-  height: 48vmax;
+  z-index: 1;
+  width: 0;
+  height: 0;
   border-radius: 50%;
-  opacity: 0;
-  transform: translate(-50%, -50%) scale(0);
-}
-.exercise-reveal-fx__flash {
-  background: radial-gradient(circle, rgba(255,255,255,0.9) 0%, rgba(57,255,124,0.66) 23%, rgba(57,255,124,0.22) 47%, transparent 70%);
-  filter: blur(2px);
-}
-.exercise-reveal-fx__wave {
-  background: radial-gradient(circle, transparent 0 36%, rgba(0,0,0,0.94) 43%, rgba(0,0,0,0.86) 52%, transparent 64%);
-  filter: blur(1px);
-}
-.exercise-reveal-fx--run .exercise-reveal-fx__flash {
-  animation: exerciseRevealFlash 2600ms ease-out forwards;
-}
-.exercise-reveal-fx--run .exercise-reveal-fx__wave {
-  animation: exerciseRevealBlackWave 2800ms cubic-bezier(.18,.82,.24,1) 120ms forwards;
-}
-@keyframes exerciseRevealFlash {
-  0%   { opacity: 0; transform: translate(-50%, -50%) scale(0); }
-  12%  { opacity: 1; transform: translate(-50%, -50%) scale(0.22); }
-  55%  { opacity: 0.7; transform: translate(-50%, -50%) scale(1.9); }
-  100% { opacity: 0; transform: translate(-50%, -50%) scale(4.8); }
-}
-@keyframes exerciseRevealBlackWave {
-  0%   { opacity: 0; transform: translate(-50%, -50%) scale(0); }
-  14%  { opacity: 0.95; transform: translate(-50%, -50%) scale(0.3); }
-  62%  { opacity: 0.78; transform: translate(-50%, -50%) scale(2.45); }
-  100% { opacity: 0; transform: translate(-50%, -50%) scale(5.0); }
+  background: #00ff5e;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  will-change: width, height;
 }
 
 /* Supernowa — rozbłysk po wykonaniu ćwiczenia */
