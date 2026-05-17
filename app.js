@@ -5,7 +5,7 @@
 // ---------------------------------------------------------------
 // 0. WERSJA APLIKACJI
 // ---------------------------------------------------------------
-const APP_VERSION = 'vGPT_1.0.4';
+const APP_VERSION = 'vGPT_1.0.5';
 
 // Lista rzeczy do spakowania
 const PACK_ITEMS = [
@@ -1119,9 +1119,7 @@ function confirmSet() {
     saveState();
     if (document.getElementById('screen-exercise').classList.contains('active')) {
       renderExerciseScreen(ex.id);
-      showCelebration(() => {
-        goToNextExerciseOrList(ex.id);
-      });
+      revealNextExerciseFromBelow(ex.id);
       return;
     }
   }
@@ -1162,6 +1160,81 @@ function goToNextExerciseOrList(currentExId) {
     showScreen('screen-list');
     setButtonMode('green');
   }
+}
+
+function stripIdsFromClone(root) {
+  root.removeAttribute('id');
+  root.querySelectorAll('[id]').forEach(el => el.removeAttribute('id'));
+}
+
+function setRevealMask(layer, radius) {
+  const r = Math.max(0, radius);
+  const mask = `radial-gradient(circle at 50% 50%, transparent 0 ${r}px, #000 ${r + 2}px)`;
+  layer.style.webkitMaskImage = mask;
+  layer.style.maskImage = mask;
+}
+
+function animateExerciseRevealMask(layer, onDone) {
+  const canMask = window.CSS && (
+    CSS.supports('-webkit-mask-image', 'radial-gradient(circle, transparent 0, #000 1px)') ||
+    CSS.supports('mask-image', 'radial-gradient(circle, transparent 0, #000 1px)')
+  );
+
+  if (!canMask) {
+    layer.style.setProperty('transition', 'opacity 1050ms ease-out', 'important');
+    layer.style.setProperty('opacity', '0', 'important');
+    setTimeout(onDone, 1100);
+    return;
+  }
+
+  const maxRadius = Math.hypot(window.innerWidth, window.innerHeight);
+  const duration = 1180;
+  const start = performance.now();
+  setRevealMask(layer, 0);
+
+  function frame(now) {
+    const t = Math.min(1, (now - start) / duration);
+    const eased = 1 - Math.pow(1 - t, 3);
+    setRevealMask(layer, maxRadius * eased);
+    if (t < 1) {
+      requestAnimationFrame(frame);
+    } else {
+      onDone();
+    }
+  }
+
+  requestAnimationFrame(frame);
+}
+
+function revealNextExerciseFromBelow(currentExId) {
+  const screen = document.getElementById('screen-exercise');
+  if (!screen.classList.contains('active')) {
+    showCelebration(() => goToNextExerciseOrList(currentExId));
+    return;
+  }
+
+  document.querySelectorAll('.exercise-reveal-layer, .exercise-reveal-fx').forEach(el => el.remove());
+
+  const topLayer = screen.cloneNode(true);
+  stripIdsFromClone(topLayer);
+  topLayer.classList.add('exercise-reveal-layer');
+  topLayer.hidden = false;
+  document.body.appendChild(topLayer);
+
+  const fx = document.createElement('div');
+  fx.className = 'exercise-reveal-fx';
+  fx.innerHTML = '<div class="exercise-reveal-fx__flash"></div><div class="exercise-reveal-fx__wave"></div>';
+  document.body.appendChild(fx);
+
+  goToNextExerciseOrList(currentExId);
+
+  requestAnimationFrame(() => {
+    fx.classList.add('exercise-reveal-fx--run');
+    animateExerciseRevealMask(topLayer, () => {
+      topLayer.remove();
+      setTimeout(() => fx.remove(), 360);
+    });
+  });
 }
 
 function addNewExercise() {
@@ -1967,9 +2040,8 @@ function confirmAllRemainingSets() {
   }
   saveState();
   // Supernowa + auto-przejście do kolejnego ćwiczenia
-  showCelebration(() => {
-    goToNextExerciseOrList(ex.id);
-  });
+  renderExerciseScreen(ex.id);
+  revealNextExerciseFromBelow(ex.id);
 }
 
 // --- Powroty ---

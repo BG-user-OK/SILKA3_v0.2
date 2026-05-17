@@ -1,5 +1,5 @@
 /* ===========================================================
-   SIŁKA 3 — stylizacja vGPT_1.0.4
+   SIŁKA 3 — stylizacja vGPT_1.0.5
    =========================================================== */
 
 *,
@@ -1226,12 +1226,12 @@ input { font-family: inherit; }
 }
 .rest-charge__fill {
   /* Measured from Photos/Bateria.png, 335x746 px:
-     fill cavity x=55..289, y=134..618, size 235x485 px.
-     vGPT_1.0.4 keeps the left/top/height fixed and extends only the right edge. */
+     fill cavity x=55..296, y=134..618, size 242x485 px.
+     vGPT_1.0.5 keeps the left/top/height fixed and extends only the right edge. */
   position: absolute;
   left: 16.41791%;
   top: 17.962466%;
-  width: 70.149254%;
+  width: 72.238806%;
   height: 65.013405%;
   z-index: 4;
   overflow: hidden;
@@ -1368,6 +1368,63 @@ input { font-family: inherit; }
 @keyframes standbyFadeIn {
   from { opacity: 0; }
   to   { opacity: 1; }
+}
+
+/* Odsłonięcie kolejnego ćwiczenia spod aktualnego ekranu */
+.exercise-reveal-layer {
+  position: fixed !important;
+  inset: 0;
+  z-index: 9997;
+  opacity: 1 !important;
+  pointer-events: none !important;
+  transition: none !important;
+  background: var(--bg);
+}
+.exercise-reveal-layer * {
+  pointer-events: none !important;
+}
+.exercise-reveal-fx {
+  position: fixed;
+  inset: 0;
+  z-index: 9998;
+  pointer-events: none;
+  overflow: hidden;
+}
+.exercise-reveal-fx__flash,
+.exercise-reveal-fx__wave {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 44vmax;
+  height: 44vmax;
+  border-radius: 50%;
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0);
+}
+.exercise-reveal-fx__flash {
+  background: radial-gradient(circle, rgba(255,255,255,0.88) 0%, rgba(57,255,124,0.62) 28%, rgba(57,255,124,0.18) 58%, transparent 74%);
+  filter: blur(2px);
+}
+.exercise-reveal-fx__wave {
+  background: radial-gradient(circle, #000 0%, #000 48%, rgba(0,0,0,0.82) 59%, transparent 73%);
+}
+.exercise-reveal-fx--run .exercise-reveal-fx__flash {
+  animation: exerciseRevealFlash 980ms ease-out forwards;
+}
+.exercise-reveal-fx--run .exercise-reveal-fx__wave {
+  animation: exerciseRevealBlackWave 1120ms cubic-bezier(.18,.82,.24,1) 220ms forwards;
+}
+@keyframes exerciseRevealFlash {
+  0%   { opacity: 0; transform: translate(-50%, -50%) scale(0); }
+  14%  { opacity: 1; transform: translate(-50%, -50%) scale(0.25); }
+  62%  { opacity: 0.66; transform: translate(-50%, -50%) scale(2.25); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(3.8); }
+}
+@keyframes exerciseRevealBlackWave {
+  0%   { opacity: 0; transform: translate(-50%, -50%) scale(0); }
+  18%  { opacity: 0.96; transform: translate(-50%, -50%) scale(0.38); }
+  76%  { opacity: 0.72; transform: translate(-50%, -50%) scale(3.15); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(4.35); }
 }
 
 /* Supernowa — rozbłysk po wykonaniu ćwiczenia */
