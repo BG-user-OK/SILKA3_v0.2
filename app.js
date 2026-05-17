@@ -5,7 +5,7 @@
 // ---------------------------------------------------------------
 // 0. WERSJA APLIKACJI
 // ---------------------------------------------------------------
-const APP_VERSION = 'vGPT_1.0.10';
+const APP_VERSION = 'vGPT_1.0.11';
 
 // Lista rzeczy do spakowania
 const PACK_ITEMS = [
@@ -1209,7 +1209,7 @@ function revealNextExerciseFromBelow(currentExId) {
 
   document.body.classList.add('exercise-transitioning');
 
-  const maxRadius = Math.ceil(Math.hypot(window.innerWidth, window.innerHeight)) + 80;
+  const maxRadius = Math.ceil(Math.hypot(window.innerWidth / 2, window.innerHeight / 2)) + 12;
   setGreenWipeRadius(wipe, 0);
 
   requestAnimationFrame(() => {
