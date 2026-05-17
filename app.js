@@ -5,7 +5,7 @@
 // ---------------------------------------------------------------
 // 0. WERSJA APLIKACJI
 // ---------------------------------------------------------------
-const APP_VERSION = 'vGPT_1.0.7';
+const APP_VERSION = 'vGPT_1.0.8';
 
 // Lista rzeczy do spakowania
 const PACK_ITEMS = [
@@ -1167,39 +1167,29 @@ function stripIdsFromClone(root) {
   root.querySelectorAll('[id]').forEach(el => el.removeAttribute('id'));
 }
 
-function setRevealMask(layer, radius) {
+function setRevealClip(layer, radius) {
   const r = Math.max(0, radius);
-  const mask = `radial-gradient(circle at 50% 50%, transparent 0 ${r}px, #000 ${r + 2}px)`;
-  layer.style.webkitMaskImage = mask;
-  layer.style.maskImage = mask;
+  const clip = `circle(${r}px at 50% 50%)`;
+  layer.style.clipPath = clip;
+  layer.style.webkitClipPath = clip;
 }
 
-function animateExerciseRevealMask(layer, onDone) {
-  const canMask = ('webkitMaskImage' in layer.style) || ('maskImage' in layer.style);
+function animateExerciseRevealClip(layer, onDone) {
   const duration = 2800;
-
-  if (!canMask) {
-    layer.style.setProperty('transition', `opacity ${duration}ms ease-out`, 'important');
-    requestAnimationFrame(() => {
-      layer.style.setProperty('opacity', '0', 'important');
-    });
-    setTimeout(onDone, duration + 80);
-    return;
-  }
-
-  const maxRadius = Math.hypot(window.innerWidth, window.innerHeight) + 160;
+  const maxRadius = Math.hypot(window.innerWidth, window.innerHeight) + 180;
   const start = performance.now();
-  setRevealMask(layer, 0);
+  setRevealClip(layer, 0);
 
   function frame(now) {
     const t = Math.min(1, (now - start) / duration);
     const eased = t < 0.5
       ? 4 * t * t * t
       : 1 - Math.pow(-2 * t + 2, 3) / 2;
-    setRevealMask(layer, maxRadius * eased);
+    setRevealClip(layer, maxRadius * eased);
     if (t < 1) {
       requestAnimationFrame(frame);
     } else {
+      setRevealClip(layer, maxRadius);
       onDone();
     }
   }
@@ -1214,7 +1204,7 @@ function revealNextExerciseFromBelow(currentExId) {
     return;
   }
 
-  document.querySelectorAll('.exercise-transition, .exercise-reveal-layer, .exercise-reveal-fx').forEach(el => el.remove());
+  document.querySelectorAll('.exercise-transition, .exercise-reveal-fx').forEach(el => el.remove());
 
   const transition = document.createElement('div');
   transition.className = 'exercise-transition';
@@ -1223,7 +1213,6 @@ function revealNextExerciseFromBelow(currentExId) {
   stripIdsFromClone(oldLayer);
   oldLayer.classList.add('exercise-transition__layer', 'exercise-transition__layer--old');
   oldLayer.hidden = false;
-  setRevealMask(oldLayer, 0);
   transition.appendChild(oldLayer);
   document.body.appendChild(transition);
 
@@ -1240,7 +1229,8 @@ function revealNextExerciseFromBelow(currentExId) {
         stripIdsFromClone(newLayer);
         newLayer.classList.add('exercise-transition__layer', 'exercise-transition__layer--new');
         newLayer.hidden = false;
-        transition.insertBefore(newLayer, oldLayer);
+        setRevealClip(newLayer, 0);
+        transition.appendChild(newLayer);
 
         const fx = document.createElement('div');
         fx.className = 'exercise-reveal-fx';
@@ -1249,9 +1239,9 @@ function revealNextExerciseFromBelow(currentExId) {
 
         requestAnimationFrame(() => {
           fx.classList.add('exercise-reveal-fx--run');
-          animateExerciseRevealMask(oldLayer, () => {
+          animateExerciseRevealClip(newLayer, () => {
             document.body.classList.remove('exercise-transitioning');
-            setTimeout(() => transition.remove(), 620);
+            transition.remove();
           });
         });
       });
