@@ -5,7 +5,7 @@
 // ---------------------------------------------------------------
 // 0. WERSJA APLIKACJI
 // ---------------------------------------------------------------
-const APP_VERSION = 'vGPT_1.0.11';
+const APP_VERSION = 'vGPT_1.0.12';
 
 // Lista rzeczy do spakowania
 const PACK_ITEMS = [
@@ -1054,13 +1054,15 @@ function startRestCompletionFlash() {
   restDoneTimer = setTimeout(endRestDoneAndStandby, 3700);
 }
 function endRestDoneAndStandby() {
-  // Po rozbłysku lub kliknięciu wróć od razu do ekranu ćwiczenia.
+  // Po rozbłysku lub kliknięciu pokaż czarny ekran czuwania przed następną serią.
   clearRestCompletionTimers();
   restCompletionActive = false;
-  document.getElementById('restOverlay').hidden = true;
-  document.getElementById('restDoneOverlay').hidden = true;
-  hideStandbyOverlay();
-  setButtonMode('green');
+  runGreenWipeTransition(() => {
+    document.getElementById('restOverlay').hidden = true;
+    document.getElementById('restDoneOverlay').hidden = true;
+    showStandbyOverlay();
+    setButtonMode('green');
+  });
 }
 function endRestCountdown() {
   // używane do twardego anulowania (np. powrót na home)
@@ -1190,13 +1192,10 @@ function animateGreenWipe(wipe, fromRadius, toRadius, duration, onDone) {
   requestAnimationFrame(frame);
 }
 
-function revealNextExerciseFromBelow(currentExId) {
-  const screen = document.getElementById('screen-exercise');
-  if (!screen.classList.contains('active')) {
-    showCelebration(() => goToNextExerciseOrList(currentExId));
-    return;
-  }
+const GREEN_WIPE_EXPAND_MS = 450;
+const GREEN_WIPE_COLLAPSE_MS = 500;
 
+function runGreenWipeTransition(onCovered, onDone) {
   document.querySelectorAll('.exercise-transition').forEach(el => el.remove());
 
   const transition = document.createElement('div');
@@ -1213,14 +1212,25 @@ function revealNextExerciseFromBelow(currentExId) {
   setGreenWipeRadius(wipe, 0);
 
   requestAnimationFrame(() => {
-    animateGreenWipe(wipe, 0, maxRadius, 900, () => {
-      goToNextExerciseOrList(currentExId);
-      animateGreenWipe(wipe, maxRadius, 0, 1000, () => {
+    animateGreenWipe(wipe, 0, maxRadius, GREEN_WIPE_EXPAND_MS, () => {
+      if (onCovered) onCovered();
+      animateGreenWipe(wipe, maxRadius, 0, GREEN_WIPE_COLLAPSE_MS, () => {
         document.body.classList.remove('exercise-transitioning');
         transition.remove();
+        if (onDone) onDone();
       });
     });
   });
+}
+
+function revealNextExerciseFromBelow(currentExId) {
+  const screen = document.getElementById('screen-exercise');
+  if (!screen.classList.contains('active')) {
+    showCelebration(() => goToNextExerciseOrList(currentExId));
+    return;
+  }
+
+  runGreenWipeTransition(() => goToNextExerciseOrList(currentExId));
 }
 
 function addNewExercise() {
