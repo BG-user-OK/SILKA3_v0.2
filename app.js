@@ -5,7 +5,7 @@
 // ---------------------------------------------------------------
 // 0. WERSJA APLIKACJI
 // ---------------------------------------------------------------
-const APP_VERSION = 'vGPT_1.0.12';
+const APP_VERSION = 'vGPT_6.2.0';
 
 // Lista rzeczy do spakowania
 const PACK_ITEMS = [
@@ -31,10 +31,20 @@ const LS_APPSCRIPT = 'silka3_appscript_url';
 const REST_SECONDS = 60;
 const STORAGE_VERSION = 2;
 const RESET_HOLD_MS = 2000;
+const HISTORY_SYNC_VISIBLE_MS = 60000;
+const HISTORY_SYNC_VERIFY_RETRY_MS = 1000;
 
 const PL_MONTHS_SHORT = ['sty','lut','mar','kwi','maj','cze','lip','sie','wrz','paź','lis','gru'];
 const PL_MONTHS_FULL  = ['styczeń','luty','marzec','kwiecień','maj','czerwiec','lipiec','sierpień','wrzesień','październik','listopad','grudzień'];
 const PL_DOW = ['niedziela','poniedziałek','wtorek','środa','czwartek','piątek','sobota'];
+
+let historySyncStatus = {
+  status: 'idle',
+  date: null,
+  duration: null,
+  seq: 0,
+  clearTimer: null
+};
 
 function pad2(n) { return String(n).padStart(2, '0'); }
 function toISODate(d) { return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`; }
@@ -59,6 +69,82 @@ function addMonths(date, n) {
 }
 function todayISO() {
   return toISODate(new Date());
+}
+
+function wait(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function normalizeDuration(value) {
+  const text = String(value || '').trim();
+  const m = text.match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
+  if (!m) return text;
+  return `${pad2(Number(m[1]))}:${pad2(Number(m[2]))}`;
+}
+
+function sameWorkoutEntry(a, b) {
+  if (!a || !b) return false;
+  return a.date === b.date && normalizeDuration(a.duration) === normalizeDuration(b.duration);
+}
+
+function clearHistorySyncTimer() {
+  if (historySyncStatus.clearTimer) {
+    clearTimeout(historySyncStatus.clearTimer);
+    historySyncStatus.clearTimer = null;
+  }
+}
+
+function clearHistorySyncStatus(seq) {
+  if (seq !== undefined && historySyncStatus.seq !== seq) return;
+  clearHistorySyncTimer();
+  historySyncStatus = {
+    status: 'idle',
+    date: null,
+    duration: null,
+    seq: historySyncStatus.seq + 1,
+    clearTimer: null
+  };
+  renderHome();
+}
+
+function setHistorySyncStatus(status, entry) {
+  clearHistorySyncTimer();
+  const seq = historySyncStatus.seq + 1;
+  historySyncStatus = {
+    status,
+    date: entry?.date || null,
+    duration: entry?.duration || null,
+    seq,
+    clearTimer: null
+  };
+  renderHome();
+
+  if (status === 'confirmed' || status === 'failed') {
+    historySyncStatus.clearTimer = setTimeout(() => {
+      clearHistorySyncStatus(seq);
+    }, HISTORY_SYNC_VISIBLE_MS);
+  }
+}
+
+function historySyncCellHtml(entry, rowIndex, fallback) {
+  if (rowIndex !== 0 || entry.planned || historySyncStatus.status === 'idle') {
+    return String(fallback);
+  }
+  if (!sameWorkoutEntry(entry, historySyncStatus)) {
+    return String(fallback);
+  }
+
+  const visual = historySyncStatus.status === 'confirmed'
+    ? 'confirmed'
+    : historySyncStatus.status === 'failed'
+      ? 'failed'
+      : 'checking';
+  const label = visual === 'confirmed'
+    ? 'Synchronizacja potwierdzona'
+    : visual === 'failed'
+      ? 'Synchronizacja nieudana'
+      : 'Synchronizacja w toku';
+  return `<span class="history-sync-dot history-sync-dot--${visual}" title="${label}" aria-label="${label}"></span>`;
 }
 
 // Format minutnika treningu: m:mm albo h:mm (bez sekund, bez zera przed godziną)
@@ -574,9 +660,10 @@ function renderHome() {
 
     const a3Color = avgColor(a3raw, getPrevA3, span3M, 90);
     const aBColor = avgColor(aBraw, getPrevAB, spanBR, 365);
+    const numCell = historySyncCellHtml(h, idx, num);
 
     tr.innerHTML = `
-      <td class="col-num">${num}</td>
+      <td class="col-num">${numCell}</td>
       <td class="col-date">${dateText}</td>
       <td class="col-dow">${dowText}</td>
       <td class="col-duration">${durText}</td>
@@ -1280,6 +1367,7 @@ async function finishTraining() {
   const mm = totalMin % 60;
   const duration = `${pad2(hh)}:${pad2(mm)}`;
   const entryDate = toISODate(endNoSec);
+  const latestEntry = { date: entryDate, duration };
 
   state.history = state.history.filter(h => h.date !== entryDate);
   state.history.push({ date: entryDate, duration, exported: false });
@@ -1299,17 +1387,9 @@ async function finishTraining() {
     // Eksport w tle (fire-and-forget)
     const url = (localStorage.getItem(LS_APPSCRIPT) || '').trim();
     if (url) {
-      showToast('Wysyłanie w tle...', 'ok');
-      exportPendingToSheets(url).then(ok => {
-        if (ok) {
-          showToast('Wyeksportowano do arkusza ✓', 'ok');
-        } else {
-          showToast('Eksport nieudany — przy następnym treningu', 'err');
-        }
-      }).catch(() => {
-        showToast('Eksport nieudany — przy następnym treningu', 'err');
-      });
+      syncLatestWorkoutToSheets(url, latestEntry);
     } else {
+      setHistorySyncStatus('failed', latestEntry);
       showToast('Eksport: kliknij 3× w wersję, by skonfigurować URL', 'err');
     }
   });
@@ -1629,12 +1709,79 @@ function buildHistoryRows() {
   });
 }
 
-async function exportPendingToSheets(url) {
+function appendReadAction(url) {
+  return `${url}${url.includes('?') ? '&' : '?'}action=read`;
+}
+
+async function readRowsFromSheets(url) {
+  const resp = await fetch(appendReadAction(url), { method: 'GET', cache: 'no-store' });
+  if (!resp.ok) throw new Error('HTTP ' + resp.status);
+  const text = await resp.text();
+  let data;
+  try { data = JSON.parse(text); }
+  catch (e) { throw new Error('Niepoprawny JSON z arkusza'); }
+  if (!data || !Array.isArray(data.rows)) {
+    throw new Error('Brak pola rows w odpowiedzi');
+  }
+  return data.rows;
+}
+
+function newestSheetWorkout(rows) {
+  let newest = null;
+  rows.forEach((row, index) => {
+    if (!row || !/^\d{4}-\d{2}-\d{2}$/.test(row.date || '')) return;
+    const candidate = { date: row.date, duration: row.duration || '', index };
+    if (!newest || candidate.date > newest.date || (candidate.date === newest.date && candidate.index > newest.index)) {
+      newest = candidate;
+    }
+  });
+  return newest;
+}
+
+async function verifyLatestWorkoutInSheets(url, entry) {
+  const rows = await readRowsFromSheets(url);
+  return sameWorkoutEntry(newestSheetWorkout(rows), entry);
+}
+
+async function syncLatestWorkoutToSheets(url, entry) {
+  const pendingDates = new Set(state.history.filter(h => h.exported === false).map(h => h.date));
+  setHistorySyncStatus('checking', entry);
+  showToast('Synchronizacja z arkuszem...', 'ok');
+
+  try {
+    setHistorySyncStatus('sending', entry);
+    const sent = await exportPendingToSheets(url, { markExported: false, quietNoPending: true });
+    if (!sent) throw new Error('Wysyłka nieudana');
+
+    setHistorySyncStatus('checking', entry);
+    let verified = await verifyLatestWorkoutInSheets(url, entry);
+    if (!verified) {
+      await wait(HISTORY_SYNC_VERIFY_RETRY_MS);
+      verified = await verifyLatestWorkoutInSheets(url, entry);
+    }
+    if (!verified) throw new Error('Brak potwierdzenia w arkuszu');
+
+    state.history.forEach(h => {
+      if (pendingDates.has(h.date)) h.exported = true;
+    });
+    saveState();
+    setHistorySyncStatus('confirmed', entry);
+    showToast('Synchronizacja potwierdzona ✓', 'ok');
+  } catch (e) {
+    console.warn('sync verify error', e);
+    setHistorySyncStatus('failed', entry);
+    showToast('Synchronizacja niepotwierdzona', 'err');
+  }
+}
+
+async function exportPendingToSheets(url, options = {}) {
   // Eksportuje tylko wpisy z exported=false.
   // Po sukcesie ustawia exported=true.
+  const markExported = options.markExported !== false;
+  const quietNoPending = options.quietNoPending === true;
   const pending = state.history.filter(h => h.exported === false);
   if (pending.length === 0) {
-    showToast('Brak nowych wpisów do wysłania', 'ok');
+    if (!quietNoPending) showToast('Brak nowych wpisów do wysłania', 'ok');
     return true;
   }
 
@@ -1653,11 +1800,12 @@ async function exportPendingToSheets(url) {
         rows: rowsToSend
       })
     });
-    // Optymistycznie — oznacz jako wyeksportowane
-    state.history.forEach(h => {
-      if (pendingDates.has(h.date)) h.exported = true;
-    });
-    saveState();
+    if (markExported) {
+      state.history.forEach(h => {
+        if (pendingDates.has(h.date)) h.exported = true;
+      });
+      saveState();
+    }
     return true;
   } catch (e) {
     console.warn('export error', e);

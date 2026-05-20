@@ -1,5 +1,5 @@
 /* ===========================================================
-   SIŁKA 3 — stylizacja vGPT_1.0.12
+   SIŁKA 3 — stylizacja vGPT_6.2.0
    =========================================================== */
 
 *,
@@ -356,6 +356,36 @@ input { font-family: inherit; }
   font-weight: 500;
   font-size: 11px;
   color: #7a8090; /* mało istotne — czytelne */
+}
+.history-sync-dot {
+  display: inline-block;
+  width: clamp(10px, 2.6vw, 15px);
+  height: clamp(10px, 2.6vw, 15px);
+  border-radius: 50%;
+  vertical-align: middle;
+}
+.history-sync-dot--checking {
+  background: #facc15;
+  box-shadow: 0 0 9px rgba(250,204,21,0.7);
+  animation: historySyncBlink 760ms ease-in-out infinite;
+}
+.history-sync-dot--confirmed {
+  background: #39ff7c;
+  box-shadow: 0 0 10px rgba(57,255,124,0.8);
+}
+.history-sync-dot--failed {
+  background: #ef4444;
+  box-shadow: 0 0 10px rgba(239,68,68,0.8);
+}
+@keyframes historySyncBlink {
+  0%, 100% {
+    opacity: 0.35;
+    transform: scale(0.82);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 .history-table td.col-date {
   font-family: 'Orbitron', sans-serif;
