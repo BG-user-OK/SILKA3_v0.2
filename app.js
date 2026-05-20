@@ -5,7 +5,7 @@
 // ---------------------------------------------------------------
 // 0. WERSJA APLIKACJI
 // ---------------------------------------------------------------
-const APP_VERSION = 'vGPT_1.1.0';
+const APP_VERSION = 'vGPT_1.1.1';
 
 // Lista rzeczy do spakowania
 const PACK_ITEMS = [
