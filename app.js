@@ -5,7 +5,7 @@
 // ---------------------------------------------------------------
 // 0. WERSJA APLIKACJI
 // ---------------------------------------------------------------
-const APP_VERSION = 'vGPT_6.2.0';
+const APP_VERSION = 'vGPT_1.1.0';
 
 // Lista rzeczy do spakowania
 const PACK_ITEMS = [
@@ -1727,15 +1727,7 @@ async function readRowsFromSheets(url) {
 }
 
 function newestSheetWorkout(rows) {
-  let newest = null;
-  rows.forEach((row, index) => {
-    if (!row || !/^\d{4}-\d{2}-\d{2}$/.test(row.date || '')) return;
-    const candidate = { date: row.date, duration: row.duration || '', index };
-    if (!newest || candidate.date > newest.date || (candidate.date === newest.date && candidate.index > newest.index)) {
-      newest = candidate;
-    }
-  });
-  return newest;
+  return rows.find(row => row && /^\d{4}-\d{2}-\d{2}$/.test(row.date || '')) || null;
 }
 
 async function verifyLatestWorkoutInSheets(url, entry) {

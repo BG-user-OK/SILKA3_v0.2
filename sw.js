@@ -1,5 +1,5 @@
 // SIŁKA 3 — Service Worker
-const CACHE_NAME = 'silka3-vGPT_6.2.0';
+const CACHE_NAME = 'silka3-vGPT_1.1.0';
 const CORE_ASSETS = [
   './',
   './index.html',
