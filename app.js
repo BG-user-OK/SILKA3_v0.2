@@ -5,7 +5,7 @@
 // ---------------------------------------------------------------
 // 0. WERSJA APLIKACJI
 // ---------------------------------------------------------------
-const APP_VERSION = 'vGPT_1.1.1';
+const APP_VERSION = 'vGPT_1.2.1';
 
 // Lista rzeczy do spakowania
 const PACK_ITEMS = [
@@ -29,6 +29,9 @@ const PACK_ITEMS = [
 const STORAGE_KEY = 'silka3_state_v2';
 const LS_APPSCRIPT = 'silka3_appscript_url';
 const REST_SECONDS = 60;
+const MIN_REST_SECONDS = 5;
+const MAX_REST_SECONDS = 600;
+const MANUAL_REST_HOLD_MS = 3000;
 const STORAGE_VERSION = 2;
 const RESET_HOLD_MS = 2000;
 const HISTORY_SYNC_VISIBLE_MS = 60000;
@@ -47,6 +50,11 @@ let historySyncStatus = {
 };
 
 function pad2(n) { return String(n).padStart(2, '0'); }
+function normalizeManualRestSeconds(value, fallback = REST_SECONDS) {
+  const parsed = parseInt(value, 10);
+  const safe = Number.isFinite(parsed) ? parsed : fallback;
+  return Math.max(MIN_REST_SECONDS, Math.min(MAX_REST_SECONDS, safe));
+}
 function toISODate(d) { return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`; }
 function fromISODate(s) { const [y,m,d] = s.split('-').map(Number); return new Date(y, m-1, d); }
 function fmtDateShort(iso) {
@@ -272,6 +280,11 @@ function loadState() {
         // Migracja brakujących pól (dodawanych w nowszych wersjach)
         if (s.packingDate === undefined) s.packingDate = null;
         if (s.goalDays === undefined || s.goalDays === null) s.goalDays = 3.5;
+        if (s.manualRestSeconds === undefined || s.manualRestSeconds === null) {
+          s.manualRestSeconds = REST_SECONDS;
+        } else {
+          s.manualRestSeconds = normalizeManualRestSeconds(s.manualRestSeconds);
+        }
         // Migracja restSeconds dla każdego ćwiczenia + Waga jako string
         if (Array.isArray(s.exercises)) {
           s.exercises.forEach(ex => {
@@ -293,7 +306,8 @@ function loadState() {
             version: STORAGE_VERSION,
             exercises: old.exercises || defaultExercises(),
             history: (old.history || []).map(h => ({ ...h, exported: false })),
-            current: old.current || null
+            current: old.current || null,
+            manualRestSeconds: REST_SECONDS
           };
         }
       } catch (e) { /* ignore */ }
@@ -306,6 +320,7 @@ function loadState() {
     current: null,
     packingDate: null,  // ISO date — kiedy ostatnio potwierdzono pakowanie
     goalDays: 3.5,      // cel: co ile dni trening (próg dla kolorów)
+    manualRestSeconds: REST_SECONDS,
   };
 }
 
@@ -995,6 +1010,70 @@ function setButtonMode(mode) {
 let restTotalSeconds = REST_SECONDS;
 const REST_CHARGE_MODULE_COUNT = 13;
 let restChargeLoadedModules = 0;
+let restPercentFrame = null;
+let restPercentStartMs = 0;
+let restPercentDurationMs = REST_SECONDS * 1000;
+let restDisplayedPercent = null;
+
+function setRestChargePercent(value, animate = true) {
+  const percentEl = document.getElementById('restChargePercent');
+  if (!percentEl) return;
+
+  const nextValue = Math.min(100, Math.max(0, Math.round(value)));
+  if (restDisplayedPercent === nextValue && percentEl.querySelector('.rest-charge__percent-value.is-current')) return;
+
+  const next = document.createElement('span');
+  next.className = 'rest-charge__percent-value is-current';
+  next.textContent = `${nextValue}%`;
+
+  percentEl.querySelectorAll('.rest-charge__percent-value.is-exit').forEach(el => el.remove());
+  const current = percentEl.querySelector('.rest-charge__percent-value.is-current');
+
+  if (!animate || !current) {
+    percentEl.replaceChildren(next);
+    restDisplayedPercent = nextValue;
+    return;
+  }
+
+  current.classList.remove('is-current', 'is-enter');
+  current.classList.add('is-exit');
+  current.addEventListener('animationend', () => current.remove(), { once: true });
+
+  next.classList.add('is-enter');
+  next.addEventListener('animationend', () => next.classList.remove('is-enter'), { once: true });
+  percentEl.appendChild(next);
+  restDisplayedPercent = nextValue;
+}
+
+function stopRestPercentAnimation(finalPercent = null) {
+  if (restPercentFrame) {
+    cancelAnimationFrame(restPercentFrame);
+    restPercentFrame = null;
+  }
+  if (finalPercent !== null) setRestChargePercent(finalPercent);
+}
+
+function startRestPercentAnimation(seconds) {
+  stopRestPercentAnimation();
+  restPercentStartMs = performance.now();
+  restPercentDurationMs = Math.max(1, seconds * 1000);
+  setRestChargePercent(0, false);
+
+  const frame = now => {
+    const elapsedMs = Math.max(0, now - restPercentStartMs);
+    const percent = Math.min(100, Math.floor((elapsedMs / restPercentDurationMs) * 100));
+    setRestChargePercent(percent);
+
+    if (elapsedMs < restPercentDurationMs) {
+      restPercentFrame = requestAnimationFrame(frame);
+    } else {
+      restPercentFrame = null;
+      setRestChargePercent(100);
+    }
+  };
+
+  restPercentFrame = requestAnimationFrame(frame);
+}
 
 function getRestChargeModules() {
   const segments = document.querySelector('#restChargeFill .rest-charge__segments');
@@ -1053,13 +1132,18 @@ function updateRestChargeVisual(percent) {
   return chargePercent;
 }
 
-function startRestCountdown() {
+function startRestCountdown(secondsOverride = null) {
   // Pobierz długość przerwy z bieżącego ćwiczenia (z fallbackiem na 60s)
   const ex = state.exercises.find(e => e.id === currentExerciseId);
-  const seconds = Math.max(1, Number((ex && ex.restSeconds) ? ex.restSeconds : REST_SECONDS) || REST_SECONDS);
+  const sourceSeconds = secondsOverride !== null && secondsOverride !== undefined
+    ? secondsOverride
+    : ((ex && ex.restSeconds) ? ex.restSeconds : REST_SECONDS);
+  const seconds = Math.max(1, Number(sourceSeconds) || REST_SECONDS);
   restTotalSeconds = seconds;
   restRemaining = seconds;
+  if (restInterval) { clearInterval(restInterval); restInterval = null; }
   resetRestChargeVisual();
+  setRestChargePercent(0, false);
   setButtonMode('rest');
   // Krótka wibracja jako "registration" user gesture dla późniejszej wibracji
   vibratePhone(50);
@@ -1072,7 +1156,7 @@ function startRestCountdown() {
   overlay.onclick = () => skipRest();
 
   updateRestUI();
-  if (restInterval) clearInterval(restInterval);
+  startRestPercentAnimation(seconds);
   restInterval = setInterval(() => {
     restRemaining -= 1;
     updateRestUI();
@@ -1089,9 +1173,7 @@ function updateRestUI() {
   const total = Math.max(1, restTotalSeconds || REST_SECONDS);
   const elapsed = Math.min(total, Math.max(0, total - safeRemaining));
   const percent = Math.min(100, Math.max(0, Math.round((elapsed / total) * 100)));
-  const chargePercent = updateRestChargeVisual(percent);
-  const percentEl = document.getElementById('restChargePercent');
-  if (percentEl) percentEl.textContent = `${chargePercent}%`;
+  updateRestChargeVisual(percent);
 }
 
 let restDoneTimer = null;
@@ -1114,6 +1196,7 @@ function finishRestCountdown() {
   // Zostaw pełną baterię na ekranie przed fazą migania.
   restRemaining = 0;
   updateRestUI();
+  stopRestPercentAnimation(100);
   restCompletionActive = true;
   const overlay = document.getElementById('restOverlay');
   overlay.hidden = false;
@@ -1154,6 +1237,7 @@ function endRestDoneAndStandby() {
 function endRestCountdown() {
   // używane do twardego anulowania (np. powrót na home)
   if (restInterval) { clearInterval(restInterval); restInterval = null; }
+  stopRestPercentAnimation();
   clearRestCompletionTimers();
   restCompletionActive = false;
   document.getElementById('restOverlay').hidden = true;
@@ -1163,6 +1247,7 @@ function endRestCountdown() {
 }
 function skipRest() {
   if (restInterval) { clearInterval(restInterval); restInterval = null; }
+  stopRestPercentAnimation();
   clearRestCompletionTimers();
   restCompletionActive = false;
   document.getElementById('restOverlay').hidden = true;
@@ -1465,6 +1550,26 @@ function openEditExercise(exId) {
 function closeModal(id) {
   document.getElementById(id).hidden = true;
 }
+
+function openManualRestModal() {
+  const input = document.getElementById('fManualRestSeconds');
+  state.manualRestSeconds = normalizeManualRestSeconds(state.manualRestSeconds);
+  input.value = state.manualRestSeconds;
+  document.getElementById('modalManualRest').hidden = false;
+  setTimeout(() => {
+    input.focus();
+    input.select();
+  }, 80);
+}
+
+document.getElementById('formManualRest').addEventListener('submit', e => {
+  e.preventDefault();
+  const seconds = normalizeManualRestSeconds(document.getElementById('fManualRestSeconds').value);
+  state.manualRestSeconds = seconds;
+  saveState();
+  closeModal('modalManualRest');
+  showToast(`Ręczna przerwa: ${seconds}s`, 'ok');
+});
 
 document.getElementById('formEditExercise').addEventListener('submit', e => {
   e.preventDefault();
@@ -2138,6 +2243,82 @@ btnConfirm.addEventListener('touchcancel', (e) => { e.preventDefault(); onConfir
 btnConfirm.addEventListener('mousedown',   onConfirmPress);
 btnConfirm.addEventListener('mouseup',     onConfirmRelease);
 btnConfirm.addEventListener('mouseleave',  onConfirmCancel);
+
+function startManualRestCountdown() {
+  if (!document.getElementById('screen-exercise').classList.contains('active')) return;
+  state.manualRestSeconds = normalizeManualRestSeconds(state.manualRestSeconds);
+  saveState();
+  hideStandbyOverlay();
+  startRestCountdown(state.manualRestSeconds);
+}
+
+const manualRestBattery = document.getElementById('manualRestBattery');
+let manualRestHoldTimer = null;
+let manualRestLongPressTriggered = false;
+let manualRestLastTouchAt = 0;
+
+function stopManualRestEvent(e) {
+  if (!e) return;
+  e.preventDefault();
+  e.stopPropagation();
+}
+
+function clearManualRestHold() {
+  if (manualRestHoldTimer) {
+    clearTimeout(manualRestHoldTimer);
+    manualRestHoldTimer = null;
+  }
+  manualRestBattery.classList.remove('holding');
+}
+
+function onManualRestPress(e) {
+  stopManualRestEvent(e);
+  manualRestLongPressTriggered = false;
+  clearManualRestHold();
+  manualRestBattery.classList.add('holding');
+  manualRestHoldTimer = setTimeout(() => {
+    manualRestHoldTimer = null;
+    manualRestLongPressTriggered = true;
+    manualRestBattery.classList.remove('holding');
+    openManualRestModal();
+  }, MANUAL_REST_HOLD_MS);
+}
+
+function onManualRestRelease(e) {
+  stopManualRestEvent(e);
+  clearManualRestHold();
+  if (manualRestLongPressTriggered) {
+    manualRestLongPressTriggered = false;
+    return;
+  }
+  startManualRestCountdown();
+}
+
+function onManualRestCancel(e) {
+  stopManualRestEvent(e);
+  clearManualRestHold();
+}
+
+manualRestBattery.addEventListener('touchstart', e => {
+  manualRestLastTouchAt = Date.now();
+  onManualRestPress(e);
+}, { passive: false });
+manualRestBattery.addEventListener('touchend', onManualRestRelease, { passive: false });
+manualRestBattery.addEventListener('touchcancel', onManualRestCancel, { passive: false });
+manualRestBattery.addEventListener('touchmove', onManualRestCancel, { passive: false });
+manualRestBattery.addEventListener('mousedown', e => {
+  if (Date.now() - manualRestLastTouchAt < 700) return;
+  onManualRestPress(e);
+});
+manualRestBattery.addEventListener('mouseup', e => {
+  if (Date.now() - manualRestLastTouchAt < 700) return;
+  onManualRestRelease(e);
+});
+manualRestBattery.addEventListener('mouseleave', e => {
+  if (Date.now() - manualRestLastTouchAt < 700) return;
+  onManualRestCancel(e);
+});
+manualRestBattery.addEventListener('click', stopManualRestEvent);
 
 // Cichy "przycisk" w dolnej 1/3 ekranu ćwiczenia → włącza standby
 document.getElementById('standbyTrigger').addEventListener('click', () => {

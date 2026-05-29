@@ -1,5 +1,5 @@
 /* ===========================================================
-   SIŁKA 3 — stylizacja vGPT_1.1.1
+   SIŁKA 3 — stylizacja vGPT_1.2.1
    =========================================================== */
 
 *,
@@ -1178,6 +1178,49 @@ input { font-family: inherit; }
 }
 .helper-images:empty { display: none; }
 
+.manual-rest-battery {
+  position: absolute;
+  left: clamp(14px, 4vw, 28px);
+  bottom: calc(18px + var(--safe-b));
+  z-index: 12;
+  width: clamp(58px, 17vw, 92px);
+  aspect-ratio: 335 / 746;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  opacity: 0.76;
+  filter:
+    drop-shadow(0 0 8px rgba(68,216,117,0.10))
+    drop-shadow(0 0 18px rgba(0,0,0,0.80));
+  touch-action: none;
+  user-select: none;
+  transition: opacity 160ms ease, transform 160ms ease, filter 160ms ease;
+}
+.manual-rest-battery img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+  transform: scaleX(1.3);
+  transform-origin: center center;
+}
+.manual-rest-battery:active,
+.manual-rest-battery.holding {
+  opacity: 1;
+  transform: scale(0.96);
+  filter:
+    drop-shadow(0 0 10px rgba(68,216,117,0.24))
+    drop-shadow(0 0 22px rgba(0,0,0,0.90));
+}
+.manual-rest-battery.holding {
+  animation: manualRestHoldPulse 0.55s ease-in-out infinite alternate;
+}
+@keyframes manualRestHoldPulse {
+  from { opacity: 0.72; }
+  to   { opacity: 1; }
+}
+
 /* ==========================================================
    OVERLAY ODLICZANIA PRZERWY
    ========================================================== */
@@ -1213,10 +1256,36 @@ input { font-family: inherit; }
   font-weight: 900;
   font-size: clamp(38px, 11vw, 82px);
   line-height: 1;
+  position: relative;
+  min-width: 4ch;
+  min-height: 1em;
+  text-align: center;
   color: #44d875;
   text-shadow:
     0 0 10px rgba(68,216,117,0.48),
     0 0 28px rgba(68,216,117,0.20);
+}
+.rest-charge__percent-value {
+  display: block;
+}
+.rest-charge__percent-value.is-exit,
+.rest-charge__percent-value.is-enter {
+  position: absolute;
+  inset: 0;
+}
+.rest-charge__percent-value.is-exit {
+  animation: restPercentOut 150ms ease-in forwards;
+}
+.rest-charge__percent-value.is-enter {
+  animation: restPercentIn 150ms ease-out forwards;
+}
+@keyframes restPercentOut {
+  from { opacity: 1; transform: translateY(0); }
+  to   { opacity: 0; transform: translateY(0.18em); }
+}
+@keyframes restPercentIn {
+  from { opacity: 0; transform: translateY(-0.16em); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 .rest-charge__battery {
   --rest-charge-shell-scale-x: 1.3;
