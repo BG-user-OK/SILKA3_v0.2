@@ -1155,6 +1155,11 @@ input { font-family: inherit; }
   object-fit: contain;
   display: block;
 }
+.exercise-image-wrap--portrait-11 {
+  align-self: start;
+  min-height: 0;
+  aspect-ratio: 480 / 1078;
+}
 .exercise-image.hidden { display: none; }
 .exercise-image-fallback {
   font-family: 'Orbitron', sans-serif;

@@ -5,7 +5,17 @@
 // ---------------------------------------------------------------
 // 0. WERSJA APLIKACJI
 // ---------------------------------------------------------------
-const APP_VERSION = 'vGPT_1.2.1';
+const APP_VERSION = 'vGPT_1.3.0';
+
+// Wersjonowane wyłącznie grafiki podmienione w tej wersji. Dzięki temu PWA
+// pobiera je pod nowym adresem, nawet gdy poprzedni plik był już w cache.
+const VERSIONED_EXERCISE_IMAGE_IDS = new Set([8, 11, 14, 18]);
+
+function getExerciseImageSource(exercise) {
+  const source = exercise?.img || '';
+  if (!source || !VERSIONED_EXERCISE_IMAGE_IDS.has(exercise.id)) return source;
+  return `${source}${source.includes('?') ? '&' : '?'}v=${APP_VERSION}`;
+}
 
 // Lista rzeczy do spakowania
 const PACK_ITEMS = [
@@ -200,7 +210,7 @@ function defaultExercises() {
     { id:14, name:'Ćwiczenie 14',  sets:3, reps:'12',       weight:9     },
     { id:15, name:'Ćwiczenie 15',  sets:2, reps:'8-10',     weight:null  }
   ];
-  return defs.map(e => ({
+  return [...defs.map(e => ({
     id: e.id,
     name: e.name,
     img: `Photos/${e.id}.jpg`,
@@ -212,7 +222,48 @@ function defaultExercises() {
     restTimer: e.id !== 1,
     restSeconds: 60,
     isTime: !!e.isTime
-  }));
+  })), createExercise18()];
+}
+
+function createExercise18() {
+  return {
+    id: 18,
+    name: 'Ćwiczenie 18',
+    img: 'Photos/18.jpg',
+    helperImages: [],
+    sets: 3,
+    reps: '15',
+    weight: null,
+    active: true,
+    restTimer: true,
+    restSeconds: 60,
+    isTime: false
+  };
+}
+
+// Jednorazowo zastępuje porzucone, ręcznie utworzone ćwiczenie 18
+// właściwą definicją z obrazem. Pozostałe ćwiczenia oraz ich kolejność
+// pozostają bez zmian.
+const EXERCISE_18_MIGRATION_VERSION = 'vGPT_1.3.0';
+
+function migrateExercise18(stateToMigrate) {
+  if (!Array.isArray(stateToMigrate.exercises)) return stateToMigrate;
+  if (stateToMigrate.exercise18Migration === EXERCISE_18_MIGRATION_VERSION) {
+    return stateToMigrate;
+  }
+
+  const existingIndex = stateToMigrate.exercises.findIndex(ex => ex.id === 18);
+  if (existingIndex === -1) {
+    stateToMigrate.exercises.push(createExercise18());
+  } else {
+    stateToMigrate.exercises.splice(existingIndex, 1, createExercise18());
+    if (stateToMigrate.current?.sets) delete stateToMigrate.current.sets[18];
+    if (Array.isArray(stateToMigrate.current?.completedExercises)) {
+      stateToMigrate.current.completedExercises = stateToMigrate.current.completedExercises.filter(id => id !== 18);
+    }
+  }
+  stateToMigrate.exercise18Migration = EXERCISE_18_MIGRATION_VERSION;
+  return stateToMigrate;
 }
 
 // Historia z domyślnymi danymi.
@@ -293,7 +344,15 @@ function loadState() {
             if (typeof ex.weight === 'number') ex.weight = `${ex.weight} kg`;
           });
         }
-        return s;
+        const needsExercise18Migration =
+          s.exercise18Migration !== EXERCISE_18_MIGRATION_VERSION &&
+          Array.isArray(s.exercises);
+        const migratedState = migrateExercise18(s);
+        // Zapis od razu sprawia, że porzucone ID 18 jest zastępowane tylko raz.
+        if (needsExercise18Migration) {
+          try { localStorage.setItem(STORAGE_KEY, JSON.stringify(migratedState)); } catch (e) { /* quota? */ }
+        }
+        return migratedState;
       }
     }
     // Migracja ze starej wersji v1 (gdyby ktoś miał)
@@ -302,13 +361,13 @@ function loadState() {
       try {
         const old = JSON.parse(oldRaw);
         if (old && old.history) {
-          return {
+          return migrateExercise18({
             version: STORAGE_VERSION,
             exercises: old.exercises || defaultExercises(),
             history: (old.history || []).map(h => ({ ...h, exported: false })),
             current: old.current || null,
             manualRestSeconds: REST_SECONDS
-          };
+          });
         }
       } catch (e) { /* ignore */ }
     }
@@ -321,6 +380,7 @@ function loadState() {
     packingDate: null,  // ISO date — kiedy ostatnio potwierdzono pakowanie
     goalDays: 3.5,      // cel: co ile dni trening (próg dla kolorów)
     manualRestSeconds: REST_SECONDS,
+    exercise18Migration: EXERCISE_18_MIGRATION_VERSION,
   };
 }
 
@@ -820,7 +880,7 @@ function renderExerciseList() {
 
     li.innerHTML = `
       <div class="exercise-item__thumb">
-        <img src="${ex.img}" alt="" onerror="this.replaceWith(Object.assign(document.createElement('span'),{textContent:'${ex.id}'}))">
+        <img src="${getExerciseImageSource(ex)}" alt="" onerror="this.replaceWith(Object.assign(document.createElement('span'),{textContent:'${ex.id}'}))">
       </div>
       <div class="exercise-item__name">${ex.name}</div>
       <div class="exercise-item__sets">
@@ -875,7 +935,9 @@ function renderExerciseScreen(exId) {
 
   const img = document.getElementById('exerciseImage');
   const fallback = document.getElementById('exerciseImageFallback');
-  img.src = ex.img;
+  const imageWrap = img.closest('.exercise-image-wrap');
+  imageWrap.classList.toggle('exercise-image-wrap--portrait-11', ex.id === 11);
+  img.src = getExerciseImageSource(ex);
   img.classList.remove('hidden');
   fallback.textContent = '';
   img.onerror = () => {
@@ -2430,7 +2492,7 @@ window.addEventListener('appinstalled', () => {
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('sw.js').catch(err => {
+    navigator.serviceWorker.register(`sw.js?v=${APP_VERSION}`).catch(err => {
       console.warn('[SW] rejestracja nieudana:', err);
     });
   });
