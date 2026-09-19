@@ -81,8 +81,8 @@ Eksport do arkusza odbywa się przez **Google Apps Script Web App** napisaną pr
 
 #### 2.1.4. Hosting
 
-- **GitHub Pages** — repozytorium publiczne `BG-user-OK/SILKA3_vGPT`, branch `main`
-- URL produkcji: `https://bg-user-ok.github.io/SILKA3_vGPT/`
+- **GitHub Pages** — repozytorium publiczne `BG-user-OK/SILKA3_v0.2`, branch `main`
+- URL produkcji: `https://bg-user-ok.github.io/SILKA3_v0.2/`
 - Cache CDN GitHub: 1–10 minut po commicie
 
 ### 2.2. PWA (Progressive Web App)
@@ -1290,7 +1290,7 @@ Pozostałe sprawy z roadmapy które nie są zrealizowane lub niedokończone:
 
 | Co | Gdzie | Kto ma |
 |----|-------|--------|
-| Repozytorium GitHub | `BG-user-OK/SILKA3_vGPT` (publiczne) | właściciel — collaborator dla nowego IT |
+| Repozytorium GitHub | `BG-user-OK/SILKA3_v0.2` (publiczne) | właściciel — collaborator dla nowego IT |
 | Google Apps Script | Konto Google właściciela | właściciel — może udostępnić |
 | Arkusz Google Sheets | Konto Google właściciela | właściciel — można udostępnić |
 | Plik `Bateria.png` i inne zasoby | W repo | publiczne |
@@ -1298,8 +1298,8 @@ Pozostałe sprawy z roadmapy które nie są zrealizowane lub niedokończone:
 ### 16.2. Klonowanie i lokalne uruchomienie
 
 ```bash
-git clone https://github.com/BG-user-OK/SILKA3_vGPT.git
-cd SILKA3_vGPT
+git clone https://github.com/BG-user-OK/SILKA3_v0.2.git
+cd SILKA3_v0.2
 python3 -m http.server 8000
 # otwórz http://localhost:8000/
 ```

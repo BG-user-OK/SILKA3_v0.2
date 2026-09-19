@@ -5,7 +5,7 @@
 // ---------------------------------------------------------------
 // 0. WERSJA APLIKACJI
 // ---------------------------------------------------------------
-const APP_VERSION = 'vGPT_1.3.0';
+const APP_VERSION = 'vGPT_1.4.0';
 
 // Wersjonowane wyłącznie grafiki podmienione w tej wersji. Dzięki temu PWA
 // pobiera je pod nowym adresem, nawet gdy poprzedni plik był już w cache.
@@ -13,7 +13,7 @@ const VERSIONED_EXERCISE_IMAGE_IDS = new Set([8, 11, 14, 18]);
 
 function getExerciseImageSource(exercise) {
   const source = exercise?.img || '';
-  if (!source || !VERSIONED_EXERCISE_IMAGE_IDS.has(exercise.id)) return source;
+  if (!source || source.startsWith('data:') || !VERSIONED_EXERCISE_IMAGE_IDS.has(exercise.id)) return source;
   return `${source}${source.includes('?') ? '&' : '?'}v=${APP_VERSION}`;
 }
 
@@ -385,7 +385,12 @@ function loadState() {
 }
 
 function saveState() {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) { /* quota? */ }
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    return true;
+  } catch (e) {
+    return false;
+  }
 }
 
 // ---------------------------------------------------------------
@@ -1485,7 +1490,11 @@ function addNewExercise() {
     isTime: false
   };
   state.exercises.push(newEx);
-  saveState();
+  if (!saveState()) {
+    state.exercises.pop();
+    showToast('Brak miejsca na nowe ćwiczenie', 'err');
+    return;
+  }
   // Otwórz modal edycji nowego ćwiczenia
   editingExerciseId = newId;
   openEditExercise(newId);
@@ -1591,10 +1600,71 @@ function showCelebration(cb) {
 // ---------------------------------------------------------------
 
 let editingExerciseId = null;
+let pendingExerciseImage = null;
+let exerciseImageProcessing = false;
+const MAX_EXERCISE_IMAGE_DATA_URL_LENGTH = 700000;
+
+function setExerciseImagePreview(source) {
+  const preview = document.getElementById('exerciseImagePreview');
+  const image = document.getElementById('exerciseImagePreviewImg');
+  if (!source) {
+    image.removeAttribute('src');
+    preview.hidden = true;
+    return;
+  }
+  image.src = source;
+  preview.hidden = false;
+}
+
+function prepareExerciseImage(file) {
+  return new Promise((resolve, reject) => {
+    if (!file?.type?.startsWith('image/')) {
+      reject(new Error('Wybierz plik graficzny'));
+      return;
+    }
+    if (file.size > 15 * 1024 * 1024) {
+      reject(new Error('Zdjęcie jest zbyt duże (maks. 15 MB)'));
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('Nie udało się odczytać zdjęcia'));
+    reader.onload = () => {
+      const image = new Image();
+      image.onerror = () => reject(new Error('Nie udało się przygotować zdjęcia'));
+      image.onload = () => {
+        const canvas = document.createElement('canvas');
+        const render = (maxSide, quality) => {
+          const scale = Math.min(1, maxSide / Math.max(image.naturalWidth, image.naturalHeight));
+          canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+          canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+          const context = canvas.getContext('2d');
+          context.drawImage(image, 0, 0, canvas.width, canvas.height);
+          return canvas.toDataURL('image/jpeg', quality);
+        };
+
+        let prepared = render(1000, 0.82);
+        if (prepared.length > MAX_EXERCISE_IMAGE_DATA_URL_LENGTH) {
+          prepared = render(720, 0.72);
+        }
+        if (prepared.length > MAX_EXERCISE_IMAGE_DATA_URL_LENGTH) {
+          reject(new Error('Zdjęcie jest zbyt szczegółowe — wybierz mniejsze'));
+          return;
+        }
+        resolve(prepared);
+      };
+      image.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
 function openEditExercise(exId) {
   const ex = state.exercises.find(e => e.id === exId);
   if (!ex) return;
   editingExerciseId = exId;
+  pendingExerciseImage = null;
+  exerciseImageProcessing = false;
   document.getElementById('fName').value = ex.name;
   document.getElementById('fSets').value = ex.sets;
   document.getElementById('fReps').value = ex.reps;
@@ -1607,6 +1677,9 @@ function openEditExercise(exId) {
   document.getElementById('fActive').checked = !!ex.active;
   document.getElementById('fRestTimer').checked = !!ex.restTimer;
   document.getElementById('fRestSeconds').value = ex.restSeconds || 60;
+  document.getElementById('fImageFile').value = '';
+  document.getElementById('btnSaveExercise').disabled = false;
+  setExerciseImagePreview(getExerciseImageSource(ex));
   document.getElementById('modalEditExercise').hidden = false;
 }
 function closeModal(id) {
@@ -1633,10 +1706,36 @@ document.getElementById('formManualRest').addEventListener('submit', e => {
   showToast(`Ręczna przerwa: ${seconds}s`, 'ok');
 });
 
+document.getElementById('fImageFile').addEventListener('change', async e => {
+  const file = e.target.files?.[0];
+  if (!file) return;
+  exerciseImageProcessing = true;
+  document.getElementById('btnSaveExercise').disabled = true;
+  try {
+    pendingExerciseImage = await prepareExerciseImage(file);
+    setExerciseImagePreview(pendingExerciseImage);
+    showToast('Zdjęcie przygotowane do zapisu', 'ok');
+  } catch (error) {
+    pendingExerciseImage = null;
+    e.target.value = '';
+    showToast(error.message, 'err');
+  } finally {
+    exerciseImageProcessing = false;
+    document.getElementById('btnSaveExercise').disabled = false;
+  }
+});
+
 document.getElementById('formEditExercise').addEventListener('submit', e => {
   e.preventDefault();
+  if (exerciseImageProcessing) {
+    showToast('Poczekaj na przygotowanie zdjęcia', 'err');
+    return;
+  }
   const ex = state.exercises.find(e2 => e2.id === editingExerciseId);
   if (!ex) return;
+  const previousExercise = { ...ex };
+  const hadCurrentSet = Object.prototype.hasOwnProperty.call(state.current?.sets || {}, ex.id);
+  const previousCurrentSet = state.current?.sets?.[ex.id];
   const newSets = Math.max(0, parseInt(document.getElementById('fSets').value, 10) || 0);
   const newReps = document.getElementById('fReps').value.trim() || ex.reps;
   const newWeight = document.getElementById('fWeight').value.trim() || null;  // string lub null
@@ -1652,18 +1751,68 @@ document.getElementById('formEditExercise').addEventListener('submit', e => {
   ex.active = newActive;
   ex.restTimer = newRest;
   ex.restSeconds = newRestSec;
+  if (pendingExerciseImage) ex.img = pendingExerciseImage;
 
   if (state.current?.sets?.[ex.id] != null && state.current.sets[ex.id] > newSets) {
     state.current.sets[ex.id] = newSets;
   }
 
-  saveState();
+  if (!saveState()) {
+    Object.assign(ex, previousExercise);
+    if (state.current?.sets) {
+      if (hadCurrentSet) state.current.sets[ex.id] = previousCurrentSet;
+      else delete state.current.sets[ex.id];
+    }
+    showToast('Brak miejsca na zapis zdjęcia', 'err');
+    return;
+  }
+  pendingExerciseImage = null;
   closeModal('modalEditExercise');
   if (document.getElementById('screen-exercise').classList.contains('active')) {
     renderExerciseScreen(ex.id);
   }
   renderExerciseList();
   showToast('Zapisano', 'ok');
+});
+
+function deleteExercise(exId) {
+  const index = state.exercises.findIndex(ex => ex.id === exId);
+  if (index < 0) return;
+  const [removedExercise] = state.exercises.splice(index, 1);
+  const hadCurrentSet = Object.prototype.hasOwnProperty.call(state.current?.sets || {}, exId);
+  const removedCurrentSet = state.current?.sets?.[exId];
+  const completedBefore = state.current?.completedExercises || [];
+  if (state.current?.sets) delete state.current.sets[exId];
+  if (state.current) {
+    state.current.completedExercises = completedBefore.filter(id => id !== exId);
+  }
+
+  if (!saveState()) {
+    state.exercises.splice(index, 0, removedExercise);
+    if (state.current?.sets && hadCurrentSet) state.current.sets[exId] = removedCurrentSet;
+    if (state.current) state.current.completedExercises = completedBefore;
+    showToast('Nie udało się usunąć ćwiczenia', 'err');
+    return;
+  }
+
+  editingExerciseId = null;
+  pendingExerciseImage = null;
+  closeModal('modalEditExercise');
+  if (currentExerciseId === exId) {
+    endRestCountdown();
+    currentExerciseId = null;
+    showScreen('screen-list');
+  }
+  renderExerciseList();
+  showToast('Ćwiczenie usunięte', 'ok');
+}
+
+document.getElementById('btnDeleteExercise').addEventListener('click', () => {
+  const ex = state.exercises.find(e => e.id === editingExerciseId);
+  if (!ex) return;
+  showConfirm('Usunąć ćwiczenie?', `„${ex.name}” zostanie trwale usunięte z tego urządzenia.`, () => {
+    deleteExercise(ex.id);
+  });
 });
 
 // ---------------------------------------------------------------
