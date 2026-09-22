@@ -1307,6 +1307,12 @@ input { font-family: inherit; }
   gap: clamp(14px, 3dvh, 28px);
   user-select: none;
 }
+.rest-charge__status {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+}
 .rest-charge__percent {
   font-family: 'Orbitron', sans-serif;
   font-weight: 900;
@@ -1330,18 +1336,28 @@ input { font-family: inherit; }
   inset: 0;
 }
 .rest-charge__percent-value.is-exit {
-  animation: restPercentOut 150ms ease-in forwards;
+  animation: restPercentOut 220ms ease-in-out forwards;
 }
 .rest-charge__percent-value.is-enter {
-  animation: restPercentIn 150ms ease-out forwards;
+  animation: restPercentIn 220ms ease-in-out forwards;
 }
 @keyframes restPercentOut {
-  from { opacity: 1; transform: translateY(0); }
-  to   { opacity: 0; transform: translateY(0.18em); }
+  from { opacity: 1; }
+  to   { opacity: 0; }
 }
 @keyframes restPercentIn {
-  from { opacity: 0; transform: translateY(-0.16em); }
-  to   { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.rest-charge__sets {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 13px;
+  pointer-events: none;
+}
+.rest-charge__sets .sets-dots {
+  justify-content: center;
 }
 .rest-charge__battery {
   --rest-charge-shell-scale-x: 1.3;

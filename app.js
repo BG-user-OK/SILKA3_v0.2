@@ -5,7 +5,7 @@
 // ---------------------------------------------------------------
 // 0. WERSJA APLIKACJI
 // ---------------------------------------------------------------
-const APP_VERSION = 'vGPT_1.6.0';
+const APP_VERSION = 'vGPT_1.6.1';
 
 // Wersjonowane wyłącznie grafiki podmienione w tej wersji. Dzięki temu PWA
 // pobiera je pod nowym adresem, nawet gdy poprzedni plik był już w cache.
@@ -1433,6 +1433,22 @@ function setRestChargePercent(value, animate = true) {
   restDisplayedPercent = nextValue;
 }
 
+function renderRestChargeSetDots() {
+  const dotsEl = document.getElementById('restChargeSets');
+  if (!dotsEl) return;
+
+  const ex = state.exercises.find(e => e.id === currentExerciseId);
+  if (!ex) {
+    dotsEl.replaceChildren();
+    dotsEl.hidden = true;
+    return;
+  }
+
+  const done = state.current?.sets?.[ex.id] || 0;
+  dotsEl.innerHTML = renderSetDots(done, ex.sets);
+  dotsEl.hidden = false;
+}
+
 function stopRestPercentAnimation(finalPercent = null) {
   if (restPercentFrame) {
     cancelAnimationFrame(restPercentFrame);
@@ -1532,6 +1548,7 @@ function startRestCountdown(secondsOverride = null) {
   if (restInterval) { clearInterval(restInterval); restInterval = null; }
   resetRestChargeVisual();
   setRestChargePercent(0, false);
+  renderRestChargeSetDots();
   setButtonMode('rest');
   // Krótka wibracja jako "registration" user gesture dla późniejszej wibracji
   vibratePhone(50);

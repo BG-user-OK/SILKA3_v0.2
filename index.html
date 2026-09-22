@@ -13,7 +13,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Orbitron:wght@500;700;900&display=swap" />
-  <link rel="stylesheet" href="styles.css?v=vGPT_1.6.0" />
+  <link rel="stylesheet" href="styles.css?v=vGPT_1.6.1" />
   <title>SIŁKA 3</title>
 </head>
 <body>
@@ -200,7 +200,10 @@
       <!-- Overlay odliczania przerwy — wygaszony ekran z animacją ładowania baterii -->
       <div class="rest-overlay" id="restOverlay" hidden>
         <div class="rest-charge" id="restCharge" aria-live="polite">
-          <div class="rest-charge__percent" id="restChargePercent">0%</div>
+          <div class="rest-charge__status">
+            <div class="rest-charge__percent" id="restChargePercent">0%</div>
+            <div class="rest-charge__sets" id="restChargeSets" aria-hidden="true" hidden></div>
+          </div>
           <div class="rest-charge__battery">
             <div class="rest-charge__fill" id="restChargeFill">
               <div class="rest-charge__segments"></div>
@@ -348,6 +351,6 @@
 
   </div>
 
-  <script src="app.js?v=vGPT_1.6.0"></script>
+  <script src="app.js?v=vGPT_1.6.1"></script>
 </body>
 </html>
