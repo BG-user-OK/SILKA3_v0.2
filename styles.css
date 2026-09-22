@@ -903,6 +903,35 @@ input { font-family: inherit; }
   white-space: nowrap;
   letter-spacing: 0.01em;
 }
+.exercise-item__content {
+  min-width: 0;
+}
+.rotation-marker {
+  display: block;
+  margin-top: 3px;
+  font-family: 'Orbitron', sans-serif;
+  font-size: 8px;
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: 0.03em;
+  color: var(--text-dimmer);
+}
+.rotation-marker--current,
+.exercise-heading__rotation--current {
+  color: var(--green-glow);
+}
+.rotation-marker--next,
+.exercise-heading__rotation--next {
+  color: var(--yellow);
+}
+.rotation-marker--frozen,
+.exercise-heading__rotation--frozen {
+  color: var(--orange);
+}
+.rotation-marker--reserve,
+.exercise-heading__rotation--reserve {
+  color: var(--text-dimmer);
+}
 
 .exercise-item__sets {
   font-family: 'Orbitron', sans-serif;
@@ -1067,6 +1096,28 @@ input { font-family: inherit; }
   gap: 10px;
   overflow-y: auto;
   min-height: 0;
+}
+.exercise-heading {
+  padding: 0 38px 0 44px;
+}
+.exercise-heading h1 {
+  margin: 0;
+  color: var(--text);
+  font-size: clamp(19px, 5.5vw, 27px);
+  line-height: 1.05;
+}
+.exercise-heading p {
+  margin: 6px 0 0;
+  color: var(--text-dim);
+  font-size: 14px;
+  line-height: 1.25;
+}
+.exercise-heading__rotation {
+  margin-top: 7px;
+  font-family: 'Orbitron', sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.25;
 }
 
 /* Przycisk edycji — bardzo wyciszony, ledwo widoczny */

@@ -5,11 +5,11 @@
 // ---------------------------------------------------------------
 // 0. WERSJA APLIKACJI
 // ---------------------------------------------------------------
-const APP_VERSION = 'vGPT_1.5.1';
+const APP_VERSION = 'vGPT_1.6.0';
 
 // Wersjonowane wyłącznie grafiki podmienione w tej wersji. Dzięki temu PWA
 // pobiera je pod nowym adresem, nawet gdy poprzedni plik był już w cache.
-const VERSIONED_EXERCISE_IMAGE_IDS = new Set([8, 11, 14, 18]);
+const VERSIONED_EXERCISE_IMAGE_IDS = new Set([8, 11, 14, 16, 17, 18]);
 
 function getExerciseImageSource(exercise) {
   const source = exercise?.img || '';
@@ -192,6 +192,86 @@ function fmtClock(totalSec) {
 // 2. DANE STARTOWE (seed)
 // ---------------------------------------------------------------
 
+const EXERCISE_PLAN_MIGRATION_VERSION = 'vGPT_1.6.0';
+const EXERCISE_PLAN_ORDER = {
+  1: 1, 2: 2, 4: 3, 8: 4, 10: 5, 16: 6, 17: 7,
+  11: 8, 9: 9, 12: 10, 13: 11, 18: 12, 14: 13
+};
+const SLEEPING_EXERCISE_IDS = new Set([3, 5, 6, 7, 15]);
+const ROTATION_GROUP_KEY = 'trx-wioslo-wyciag-skos-1r';
+const ROTATION_MEMBER_IDS = [9, 13];
+const ROTATION_INITIAL_MEMBER_ID = 9;
+
+const EXERCISE_PLAN_DEFINITIONS = {
+  1: {
+    name: 'ORBITREK',
+    fullName: 'Orbitrek – rozgrzewka ogólna',
+    goal: 'Rozgrzanie całego ciała, uruchomienie nóg, bioder, barków i układu krążenia po wielogodzinnym siedzeniu.',
+    sets: 1, reps: '15 min', weight: null, isTime: true
+  },
+  2: {
+    name: 'BIODRO_ROZCIĄGANIE',
+    fullName: 'Dynamiczne rozciąganie zginaczy biodra i mięśnia czworogłowego w klęku z tylną stopą na podwyższeniu',
+    goal: 'Mobilizacja biodra i rozciągnięcie struktur skróconych podczas długiego siedzenia.',
+    sets: 1, reps: '8–12 na każdą stronę', weight: null, isTime: false
+  },
+  4: { name: 'BARK_GUMA' },
+  8: {
+    name: 'BUŁGARSKI',
+    fullName: 'Przysiad bułgarski z hantlami / Bulgarian Split Squat',
+    goal: 'Pośladki, uda, stabilizacja miednicy, równowaga i siła jednostronna.',
+    sets: 3, reps: '10 na każdą nogę', weight: '9 kg', isTime: false
+  },
+  9: {
+    name: 'TRX_WIOSŁO',
+    fullName: 'Wiosłowanie na TRX / Suspension Row',
+    goal: 'Mięśnie grzbietu, łopatki, tylny bark, biceps i stabilizacja tułowia.',
+    sets: 3, reps: '10–12', weight: null, isTime: false
+  },
+  10: {
+    name: 'HANTLE_ŁAWKA',
+    fullName: 'Wyciskanie hantli leżąc na ławce poziomej / Dumbbell Bench Press',
+    goal: 'Klatka piersiowa, triceps i przednia część barków.',
+    sets: 3, reps: '8–12', weight: '14 kg', isTime: false
+  },
+  11: {
+    name: 'UGINANIE_NÓG',
+    fullName: 'Uginanie nóg siedząc na maszynie / Seated Leg Curl',
+    goal: 'Mięśnie dwugłowe uda, półścięgnisty i półbłoniasty.',
+    sets: 3, reps: '10–12', weight: '30 kg', isTime: false
+  },
+  12: {
+    name: 'DRĄŻEK_GÓRA',
+    fullName: 'Ściąganie drążka wyciągu górnego do klatki / Lat Pulldown',
+    goal: 'Mięsień najszerszy grzbietu, biceps i mięśnie stabilizujące łopatki.',
+    sets: 3, reps: '10–12', weight: '35 kg', isTime: false
+  },
+  13: {
+    name: 'WYCIĄG_SKOS_1R',
+    fullName: 'Jednorącz ściąganie wyciągu górnego po skosie / Single-Arm High Cable Row',
+    goal: 'Najszerszy grzbietu, okolice łopatki, tylny bark, biceps oraz stabilizacja tułowia.',
+    sets: 3, reps: '10–12 na każdą rękę', weight: '15 kg', isTime: false
+  },
+  16: {
+    name: 'behind-the-back kettlebell hip hinge',
+    fullName: 'Hip hinge z kettlebellem trzymanym za plecami',
+    goal: 'Ćwiczenie techniczne przygotowujące wzorzec zawiasu biodrowego przed martwym ciągiem. Nie traktować jako głównego ćwiczenia siłowego.',
+    sets: 1, reps: '10–12', weight: 'lekkie', isTime: false, img: 'Photos/16.jpg'
+  },
+  17: {
+    name: 'Martwy ciąg rumuński z kettlem',
+    fullName: 'Martwy ciąg rumuński z kettlem',
+    goal: 'Pośladki, tylna część uda, biodra i stabilizacja tułowia.',
+    sets: 3, reps: '8–12', weight: 'dobierany progresywnie', isTime: false, img: 'Photos/17.jpg'
+  },
+  18: {
+    name: 'BRZUCH_MASZYNA',
+    fullName: 'Spięcia brzucha na maszynie / Machine Abdominal Crunch',
+    goal: 'Mięsień prosty brzucha oraz pomocniczo mięśnie skośne. Ćwiczenie pozostaje w głównym planie jako kontynuacja ćwiczeń wykonywanych w sanatorium.',
+    sets: 3, reps: '12–15', weight: null, isTime: false
+  }
+};
+
 function defaultExercises() {
   const defs = [
     { id:1,  name:'Rozgrzewka',    sets:1, reps:'5-10 min', weight:null,  isTime:true  },
@@ -210,7 +290,7 @@ function defaultExercises() {
     { id:14, name:'Ćwiczenie 14',  sets:3, reps:'12',       weight:9     },
     { id:15, name:'Ćwiczenie 15',  sets:2, reps:'8-10',     weight:null  }
   ];
-  return [...defs.map(e => ({
+  const exercises = defs.map(e => ({
     id: e.id,
     name: e.name,
     img: `Photos/${e.id}.jpg`,
@@ -222,7 +302,60 @@ function defaultExercises() {
     restTimer: e.id !== 1,
     restSeconds: 60,
     isTime: !!e.isTime
-  })), createExercise18()];
+  }));
+  exercises.push(createExercise16(), createExercise17(), createExercise18(), createPallofReserve());
+  return applyExercisePlanToExercises(exercises);
+}
+
+function createExercise16() {
+  return {
+    id: 16,
+    name: 'behind-the-back kettlebell hip hinge',
+    img: 'Photos/16.jpg',
+    helperImages: [],
+    sets: 1,
+    reps: '10–12',
+    weight: 'lekkie',
+    active: true,
+    restTimer: true,
+    restSeconds: 60,
+    isTime: false
+  };
+}
+
+function createExercise17() {
+  return {
+    id: 17,
+    name: 'Martwy ciąg rumuński z kettlem',
+    img: 'Photos/17.jpg',
+    helperImages: [],
+    sets: 3,
+    reps: '8–12',
+    weight: 'dobierany progresywnie',
+    active: true,
+    restTimer: true,
+    restSeconds: 60,
+    isTime: false
+  };
+}
+
+function createPallofReserve() {
+  return {
+    id: 19,
+    reserveKey: 'PALLOF_PRESS',
+    name: 'PALLOF_PRESS',
+    fullName: 'Pallof Press na wyciągu lub gumie',
+    goal: 'Stabilizacja tułowia i przeciwdziałanie rotacji kręgosłupa.',
+    img: null,
+    helperImages: [],
+    sets: 3,
+    reps: '10–12 na każdą stronę',
+    weight: null,
+    active: false,
+    restTimer: true,
+    restSeconds: 60,
+    isTime: false
+  };
 }
 
 function createExercise18() {
@@ -263,6 +396,72 @@ function migrateExercise18(stateToMigrate) {
     }
   }
   stateToMigrate.exercise18Migration = EXERCISE_18_MIGRATION_VERSION;
+  return stateToMigrate;
+}
+
+function applyExercisePlanToExercises(exercises) {
+  EXERCISE_PLAN_DEFINITIONS && Object.entries(EXERCISE_PLAN_DEFINITIONS).forEach(([idText, definition]) => {
+    const id = Number(idText);
+    let exercise = exercises.find(ex => ex.id === id);
+    if (!exercise && id === 16) {
+      exercise = createExercise16();
+      exercises.push(exercise);
+    } else if (!exercise && id === 17) {
+      exercise = createExercise17();
+      exercises.push(exercise);
+    }
+    if (!exercise) return;
+    Object.assign(exercise, definition);
+    if (!Array.isArray(exercise.helperImages)) exercise.helperImages = [];
+    if (exercise.restSeconds === undefined || exercise.restSeconds === null) exercise.restSeconds = 60;
+  });
+
+  Object.entries(EXERCISE_PLAN_ORDER).forEach(([idText, planOrder]) => {
+    const exercise = exercises.find(ex => ex.id === Number(idText));
+    if (exercise) exercise.planOrder = planOrder;
+  });
+
+  SLEEPING_EXERCISE_IDS.forEach(id => {
+    const exercise = exercises.find(ex => ex.id === id);
+    if (exercise) exercise.active = false;
+  });
+  Object.keys(EXERCISE_PLAN_ORDER).forEach(idText => {
+    const exercise = exercises.find(ex => ex.id === Number(idText));
+    if (exercise) exercise.active = true;
+  });
+
+  let reserve = exercises.find(ex => ex.reserveKey === 'PALLOF_PRESS' || ex.id === 19);
+  if (!reserve) {
+    reserve = createPallofReserve();
+    exercises.push(reserve);
+  } else {
+    Object.assign(reserve, createPallofReserve());
+  }
+  return exercises;
+}
+
+function ensureExerciseRotationState(stateToMigrate) {
+  const stored = stateToMigrate.exerciseRotation?.[ROTATION_GROUP_KEY]?.selectedId;
+  const selectedId = ROTATION_MEMBER_IDS.includes(stored) ? stored : ROTATION_INITIAL_MEMBER_ID;
+  stateToMigrate.exerciseRotation = {
+    ...(stateToMigrate.exerciseRotation || {}),
+    [ROTATION_GROUP_KEY]: { selectedId }
+  };
+}
+
+function migrateExercisePlanV160(stateToMigrate) {
+  if (!Array.isArray(stateToMigrate.exercises)) return stateToMigrate;
+  if (stateToMigrate.exercisePlanMigration === EXERCISE_PLAN_MIGRATION_VERSION) {
+    ensureExerciseRotationState(stateToMigrate);
+    return stateToMigrate;
+  }
+
+  stateToMigrate.exercises = applyExercisePlanToExercises(stateToMigrate.exercises);
+  // Nowy plan ma inną listę uczestników treningu; historia pozostaje, ale
+  // niedokończony trening nie może zachować błędnego przypisania serii.
+  stateToMigrate.current = null;
+  ensureExerciseRotationState(stateToMigrate);
+  stateToMigrate.exercisePlanMigration = EXERCISE_PLAN_MIGRATION_VERSION;
   return stateToMigrate;
 }
 
@@ -375,9 +574,12 @@ function loadState() {
         const needsExerciseRecovery =
           s.exerciseRecoveryMigration !== EXERCISE_RECOVERY_MIGRATION_VERSION &&
           Array.isArray(s.exercises);
-        const migratedState = recoverExerciseListFromV150(migrateExercise18(s));
+        const needsExercisePlanMigration =
+          s.exercisePlanMigration !== EXERCISE_PLAN_MIGRATION_VERSION &&
+          Array.isArray(s.exercises);
+        const migratedState = migrateExercisePlanV160(recoverExerciseListFromV150(migrateExercise18(s)));
         // Zapis od razu uruchamia każdą migrację tylko raz.
-        if (needsExercise18Migration || needsExerciseRecovery) {
+        if (needsExercise18Migration || needsExerciseRecovery || needsExercisePlanMigration) {
           try { localStorage.setItem(STORAGE_KEY, JSON.stringify(migratedState)); } catch (e) { /* quota? */ }
         }
         return migratedState;
@@ -389,13 +591,13 @@ function loadState() {
       try {
         const old = JSON.parse(oldRaw);
         if (old && old.history) {
-          return recoverExerciseListFromV150(migrateExercise18({
+          return migrateExercisePlanV160(recoverExerciseListFromV150(migrateExercise18({
             version: STORAGE_VERSION,
             exercises: old.exercises || defaultExercises(),
             history: (old.history || []).map(h => ({ ...h, exported: false })),
             current: old.current || null,
             manualRestSeconds: REST_SECONDS
-          }));
+          })));
         }
       } catch (e) { /* ignore */ }
     }
@@ -410,6 +612,8 @@ function loadState() {
     manualRestSeconds: REST_SECONDS,
     exercise18Migration: EXERCISE_18_MIGRATION_VERSION,
     exerciseRecoveryMigration: EXERCISE_RECOVERY_MIGRATION_VERSION,
+    exercisePlanMigration: EXERCISE_PLAN_MIGRATION_VERSION,
+    exerciseRotation: { [ROTATION_GROUP_KEY]: { selectedId: ROTATION_INITIAL_MEMBER_ID } },
   };
 }
 
@@ -786,10 +990,66 @@ function renderHome() {
 
 // ----- Ekran 1: lista ćwiczeń (uproszczona, podzielona) -----
 
+function getOrderedActiveExercises() {
+  return state.exercises
+    .filter(ex => ex.active)
+    .sort((a, b) => (a.planOrder ?? Number.MAX_SAFE_INTEGER) - (b.planOrder ?? Number.MAX_SAFE_INTEGER));
+}
+
+function getStoredRotationMemberId(stateSource = state) {
+  const selectedId = stateSource.exerciseRotation?.[ROTATION_GROUP_KEY]?.selectedId;
+  return ROTATION_MEMBER_IDS.includes(selectedId) ? selectedId : ROTATION_INITIAL_MEMBER_ID;
+}
+
+function isRotationMember(exercise) {
+  return ROTATION_MEMBER_IDS.includes(exercise?.id);
+}
+
+function isRotationFrozen() {
+  return ROTATION_MEMBER_IDS.some(id => !state.exercises.find(ex => ex.id === id)?.active);
+}
+
+function getWorkoutRotationMemberId() {
+  const snapshotId = state.current?.rotationSelections?.[ROTATION_GROUP_KEY];
+  return ROTATION_MEMBER_IDS.includes(snapshotId) ? snapshotId : getStoredRotationMemberId();
+}
+
+function isExerciseIncludedInWorkout(exercise) {
+  if (!exercise?.active) return false;
+  if (!isRotationMember(exercise)) return true;
+  // Gdy jedno ćwiczenie jest ręcznie uśpione, drugie działa normalnie,
+  // ale zapisany wybór rotacji pozostaje zamrożony.
+  if (isRotationFrozen()) return true;
+  return exercise.id === getWorkoutRotationMemberId();
+}
+
+function getWorkoutExercises() {
+  return getOrderedActiveExercises().filter(isExerciseIncludedInWorkout);
+}
+
+function getRotationMarker(exercise) {
+  if (!isRotationMember(exercise)) return null;
+  const selectedId = getWorkoutRotationMemberId();
+  const partnerId = ROTATION_MEMBER_IDS.find(id => id !== exercise.id);
+  return {
+    partnerId,
+    isThisWorkout: exercise.id === selectedId,
+    isFrozen: isRotationFrozen()
+  };
+}
+
+function advanceRotationAfterCompletedWorkout() {
+  if (isRotationFrozen()) return;
+  const completedMemberId = state.current?.rotationSelections?.[ROTATION_GROUP_KEY];
+  if (!ROTATION_MEMBER_IDS.includes(completedMemberId)) return;
+  const nextMemberId = ROTATION_MEMBER_IDS.find(id => id !== completedMemberId);
+  ensureExerciseRotationState(state);
+  state.exerciseRotation[ROTATION_GROUP_KEY].selectedId = nextMemberId;
+}
+
 function getTotalSetsInfo() {
   let total = 0, done = 0;
-  state.exercises.forEach(ex => {
-    if (!ex.active) return;
+  getWorkoutExercises().forEach(ex => {
     total += ex.sets;
     const d = state.current?.sets?.[ex.id] || 0;
     done += Math.min(d, ex.sets);
@@ -798,7 +1058,7 @@ function getTotalSetsInfo() {
 }
 
 function isExerciseDone(ex) {
-  if (!ex.active) return false;
+  if (!isExerciseIncludedInWorkout(ex)) return false;
   const d = state.current?.sets?.[ex.id] || 0;
   return d >= ex.sets;
 }
@@ -852,10 +1112,8 @@ function renderExerciseList() {
   const completedOrder = state.current?.completedExercises || [];
 
   const doneSet = new Set(completedOrder);
-  state.exercises.forEach(ex => {
-    if (!ex.active) {
-      bottomInactive.push(ex);
-    } else if (doneSet.has(ex.id) || isExerciseDone(ex)) {
+  getOrderedActiveExercises().forEach(ex => {
+    if (doneSet.has(ex.id) || isExerciseDone(ex)) {
       // jeśli ćwiczenie ukończone ale nie ma go w completedOrder (np. po reload),
       // dodaj do completedOrder retroaktywnie
       if (!doneSet.has(ex.id) && state.current) {
@@ -865,11 +1123,12 @@ function renderExerciseList() {
       top.push(ex);
     }
   });
+  state.exercises.filter(ex => !ex.active).forEach(ex => bottomInactive.push(ex));
 
   // Wykonane wg completedOrder (zachowując kolejność wykonania)
   completedOrder.forEach(id => {
     const ex = state.exercises.find(e => e.id === id);
-    if (ex && ex.active) bottomDone.push(ex);
+    if (ex && isExerciseIncludedInWorkout(ex)) bottomDone.push(ex);
   });
 
   // Render
@@ -912,11 +1171,20 @@ function renderExerciseList() {
       return;
     }
 
+    const imageSource = getExerciseImageSource(ex);
+    const rotationMarker = getRotationMarker(ex);
+    const markerHtml = rotationMarker
+      ? `<span class="rotation-marker ${rotationMarker.isThisWorkout ? 'rotation-marker--current' : 'rotation-marker--next'}${rotationMarker.isFrozen ? ' rotation-marker--frozen' : ''}">↻↺ ${rotationMarker.partnerId} · ${rotationMarker.isThisWorkout ? 'TEN TRENING' : 'KOLEJNY TRENING'}${rotationMarker.isFrozen ? ' · ZAMROŻONA' : ''}</span>`
+      : (ex.reserveKey === 'PALLOF_PRESS' ? '<span class="rotation-marker rotation-marker--reserve">REZERWA</span>' : '');
+    const thumbnailHtml = imageSource
+      ? `<img src="${imageSource}" alt="" onerror="this.replaceWith(Object.assign(document.createElement('span'),{textContent:'${ex.id}'}))">`
+      : `<span>${ex.reserveKey === 'PALLOF_PRESS' ? 'R' : ex.id}</span>`;
     li.innerHTML = `
-      <div class="exercise-item__thumb">
-        <img src="${getExerciseImageSource(ex)}" alt="" onerror="this.replaceWith(Object.assign(document.createElement('span'),{textContent:'${ex.id}'}))">
+      <div class="exercise-item__thumb">${thumbnailHtml}</div>
+      <div class="exercise-item__content">
+        <div class="exercise-item__name">${ex.name}</div>
+        ${markerHtml}
       </div>
-      <div class="exercise-item__name">${ex.name}</div>
       <div class="exercise-item__sets">
         ${renderSetDots(done, ex.sets)}
       </div>
@@ -926,7 +1194,7 @@ function renderExerciseList() {
     const thumb = li.querySelector('.exercise-item__thumb');
     if (thumb) setupLongPressForThumb(thumb, ex.id);
     // Long-press na prawej części (nazwa + kule) → tryb reorderowania
-    const name = li.querySelector('.exercise-item__name');
+    const name = li.querySelector('.exercise-item__content');
     const sets = li.querySelector('.exercise-item__sets');
     if (name) setupLongPressForReorder(name, ex.id);
     if (sets) setupLongPressForReorder(sets, ex.id);
@@ -966,6 +1234,26 @@ function renderExerciseScreen(exId) {
   currentExerciseId = exId;
   const ex = state.exercises.find(e => e.id === exId);
   if (!ex) return;
+
+  const fullName = document.getElementById('exerciseFullName');
+  const goal = document.getElementById('exerciseGoal');
+  const rotationMarker = document.getElementById('exerciseRotationMarker');
+  fullName.textContent = ex.fullName || ex.name;
+  goal.textContent = ex.goal || '';
+  goal.hidden = !ex.goal;
+  const rotation = getRotationMarker(ex);
+  if (rotation) {
+    rotationMarker.textContent = `↻↺ ${rotation.partnerId} · ${rotation.isThisWorkout ? 'TEN TRENING' : 'KOLEJNY TRENING'}${rotation.isFrozen ? ' · ZAMROŻONA' : ''}`;
+    rotationMarker.className = `exercise-heading__rotation ${rotation.isThisWorkout ? 'exercise-heading__rotation--current' : 'exercise-heading__rotation--next'}${rotation.isFrozen ? ' exercise-heading__rotation--frozen' : ''}`;
+    rotationMarker.hidden = false;
+  } else if (ex.reserveKey === 'PALLOF_PRESS') {
+    rotationMarker.textContent = 'REZERWA';
+    rotationMarker.className = 'exercise-heading__rotation exercise-heading__rotation--reserve';
+    rotationMarker.hidden = false;
+  } else {
+    rotationMarker.hidden = true;
+    rotationMarker.textContent = '';
+  }
 
   const img = document.getElementById('exerciseImage');
   const fallback = document.getElementById('exerciseImageFallback');
@@ -1027,11 +1315,15 @@ function ensureCurrentTraining() {
       startHM: null,
       startedAt: null,
       sets: {},
-      completedExercises: []
+      completedExercises: [],
+      rotationSelections: { [ROTATION_GROUP_KEY]: getStoredRotationMemberId() }
     };
   }
   if (!state.current.completedExercises) {
     state.current.completedExercises = [];
+  }
+  if (!state.current.rotationSelections) {
+    state.current.rotationSelections = { [ROTATION_GROUP_KEY]: getStoredRotationMemberId() };
   }
 }
 
@@ -1404,8 +1696,8 @@ function confirmSet() {
 }
 
 function goToNextExerciseOrList(currentExId) {
-  // Znajdź następne aktywne ćwiczenie po bieżącym, które nie jest wykonane
-  const activeOrder = state.exercises.filter(e => e.active);
+  // Znajdź następne ćwiczenie biorące udział w tym treningu.
+  const activeOrder = getWorkoutExercises();
   const currentIdx = activeOrder.findIndex(e => e.id === currentExId);
   let nextEx = null;
   // Najpierw szukaj po bieżącym
@@ -1531,8 +1823,7 @@ function addNewExercise() {
 
 function isTrainingComplete() {
   if (!state.current) return false;
-  for (const ex of state.exercises) {
-    if (!ex.active) continue;
+  for (const ex of getWorkoutExercises()) {
     const d = state.current.sets[ex.id] || 0;
     if (d < ex.sets) return false;
   }
@@ -1556,6 +1847,7 @@ async function finishTraining() {
 
   state.history = state.history.filter(h => h.date !== entryDate);
   state.history.push({ date: entryDate, duration, exported: false });
+  advanceRotationAfterCompletedWorkout();
   state.current = null;
   saveState();
 
@@ -2402,6 +2694,20 @@ function exitReorderMode() {
 }
 function moveExercise(exId, direction) {
   // direction: -1 (w górę) / +1 (w dół)
+  const movingExercise = state.exercises.find(e => e.id === exId);
+  if (movingExercise?.active && Number.isFinite(movingExercise.planOrder)) {
+    const visibleOrder = getOrderedActiveExercises();
+    const visibleIndex = visibleOrder.findIndex(e => e.id === exId);
+    const target = visibleOrder[visibleIndex + direction];
+    if (!target || !Number.isFinite(target.planOrder)) return;
+    const previousOrder = movingExercise.planOrder;
+    movingExercise.planOrder = target.planOrder;
+    target.planOrder = previousOrder;
+    saveState();
+    renderExerciseList();
+    return;
+  }
+
   const idx = state.exercises.findIndex(e => e.id === exId);
   if (idx === -1) return;
   const newIdx = idx + direction;
