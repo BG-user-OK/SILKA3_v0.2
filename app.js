@@ -5,7 +5,7 @@
 // ---------------------------------------------------------------
 // 0. WERSJA APLIKACJI
 // ---------------------------------------------------------------
-const APP_VERSION = 'vGPT_1.6.1';
+const APP_VERSION = 'vGPT_1.6.2';
 
 // Wersjonowane wyłącznie grafiki podmienione w tej wersji. Dzięki temu PWA
 // pobiera je pod nowym adresem, nawet gdy poprzedni plik był już w cache.
@@ -38,6 +38,9 @@ const PACK_ITEMS = [
 
 const STORAGE_KEY = 'silka3_state_v2';
 const LS_APPSCRIPT = 'silka3_appscript_url';
+const HISTORY_DATASET = 'silka3-history-v1';
+const HISTORY_PROTOCOL = 1;
+let historySyncInFlight = false;
 const REST_SECONDS = 60;
 const MIN_REST_SECONDS = 5;
 const MAX_REST_SECONDS = 600;
@@ -543,6 +546,9 @@ function loadState() {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
       const s = JSON.parse(raw);
+      if (!s || s.version !== STORAGE_VERSION || !Array.isArray(s.history) || !Array.isArray(s.exercises)) {
+        throw new Error('Nieobsługiwany lub uszkodzony zapis aplikacji');
+      }
       if (s && s.version === STORAGE_VERSION) {
         // upewnij się że wszystkie wpisy mają flagę exported
         if (Array.isArray(s.history)) {
@@ -590,6 +596,7 @@ function loadState() {
     if (oldRaw) {
       try {
         const old = JSON.parse(oldRaw);
+        if (!old || !Array.isArray(old.history)) throw new Error('Uszkodzony stary zapis');
         if (old && old.history) {
           return migrateExercisePlanV160(recoverExerciseListFromV150(migrateExercise18({
             version: STORAGE_VERSION,
@@ -599,13 +606,17 @@ function loadState() {
             manualRestSeconds: REST_SECONDS
           })));
         }
-      } catch (e) { /* ignore */ }
+      } catch (e) { throw e; }
     }
-  } catch (e) { /* ignore */ }
+  } catch (e) {
+    // Nie nadpisuj odzyskiwalnych danych domyślnym stanem.
+    alert('Nie można odczytać zapisu SIŁKI. Dane pozostawiono bez zmian. Nie czyść danych Chrome; zgłoś problem, aby bezpiecznie odzyskać zapis.');
+    throw e;
+  }
   return {
     version: STORAGE_VERSION,
     exercises: defaultExercises(),
-    history: defaultHistory(),
+    history: [], // Historia pochodzi z arkusza, nie z historycznej listy startowej.
     current: null,
     packingDate: null,  // ISO date — kiedy ostatnio potwierdzono pakowanie
     goalDays: 3.5,      // cel: co ile dni trening (próg dla kolorów)
@@ -619,9 +630,12 @@ function loadState() {
 
 function saveState() {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    const serialized = JSON.stringify(state);
+    localStorage.setItem(STORAGE_KEY, serialized);
+    if (localStorage.getItem(STORAGE_KEY) !== serialized) throw new Error('Zapis niepotwierdzony');
     return true;
   } catch (e) {
+    showToast('Nie udało się zapisać danych w telefonie. Nie zamykaj aplikacji; sprawdź miejsce w pamięci.', 'err');
     return false;
   }
 }
@@ -2368,75 +2382,82 @@ function appendReadAction(url) {
 }
 
 async function readRowsFromSheets(url) {
-  const resp = await fetch(appendReadAction(url), { method: 'GET', cache: 'no-store' });
+  const freshUrl = `${appendReadAction(url)}&_fresh=${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  const resp = await fetch(freshUrl, { method: 'GET', cache: 'no-store' });
   if (!resp.ok) throw new Error('HTTP ' + resp.status);
   const text = await resp.text();
   let data;
   try { data = JSON.parse(text); }
   catch (e) { throw new Error('Niepoprawny JSON z arkusza'); }
-  if (!data || !Array.isArray(data.rows)) {
-    throw new Error('Brak pola rows w odpowiedzi');
+  if (!data || data.ok !== true || data.dataset !== HISTORY_DATASET || data.protocol !== HISTORY_PROTOCOL || !Array.isArray(data.rows)) {
+    throw new Error('Adres nie wskazuje poprawnego nowego backendu SIŁKI');
   }
-  return data.rows;
+  return validateHistoryRows(data.rows);
 }
 
-function newestSheetWorkout(rows) {
-  return rows.find(row => row && /^\d{4}-\d{2}-\d{2}$/.test(row.date || '')) || null;
+function validateHistoryRows(rows) {
+  const unique = new Map();
+  for (const row of rows) {
+    const date = String(row?.date || '');
+    const duration = normalizeDuration(row?.duration);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || toISODate(fromISODate(date)) !== date ||
+        !/^\d{2}:\d{2}$/.test(duration) || Number(duration.split(':')[1]) > 59) {
+      throw new Error('Nieprawidłowa data lub czas w historii; niczego nie nadpisano');
+    }
+    const existing = unique.get(date);
+    if (existing && !sameWorkoutEntry(existing, { date, duration })) {
+      throw new Error('Sprzeczne wyniki dla jednej daty; niczego nie nadpisano');
+    }
+    unique.set(date, { date, duration });
+  }
+  return [...unique.values()].sort((a, b) => b.date.localeCompare(a.date));
 }
 
-async function verifyLatestWorkoutInSheets(url, entry) {
-  const rows = await readRowsFromSheets(url);
-  return sameWorkoutEntry(newestSheetWorkout(rows), entry);
+function isAppsScriptUrl(value) {
+  try {
+    const parsed = new URL(value);
+    return parsed.protocol === 'https:' && parsed.hostname === 'script.google.com' &&
+      parsed.pathname.endsWith('/exec') && !parsed.username && !parsed.password;
+  } catch (e) { return false; }
 }
 
 async function syncLatestWorkoutToSheets(url, entry) {
-  const pendingDates = new Set(state.history.filter(h => h.exported === false).map(h => h.date));
   setHistorySyncStatus('checking', entry);
   showToast('Synchronizacja z arkuszem...', 'ok');
-
   try {
     setHistorySyncStatus('sending', entry);
-    const sent = await exportPendingToSheets(url, { markExported: false, quietNoPending: true });
-    if (!sent) throw new Error('Wysyłka nieudana');
-
-    setHistorySyncStatus('checking', entry);
-    let verified = await verifyLatestWorkoutInSheets(url, entry);
-    if (!verified) {
-      await wait(HISTORY_SYNC_VERIFY_RETRY_MS);
-      verified = await verifyLatestWorkoutInSheets(url, entry);
-    }
-    if (!verified) throw new Error('Brak potwierdzenia w arkuszu');
-
-    state.history.forEach(h => {
-      if (pendingDates.has(h.date)) h.exported = true;
-    });
-    saveState();
+    const verified = await exportPendingToSheets(url, { quietNoPending: true });
+    const savedEntry = state.history.find(h => sameWorkoutEntry(h, entry));
+    if (!verified || !savedEntry?.exported) throw new Error('Brak potwierdzenia w arkuszu');
     setHistorySyncStatus('confirmed', entry);
     showToast('Synchronizacja potwierdzona ✓', 'ok');
   } catch (e) {
-    console.warn('sync verify error', e);
     setHistorySyncStatus('failed', entry);
-    showToast('Synchronizacja niepotwierdzona', 'err');
+    showToast('Synchronizacja niepotwierdzona. Wpisy pozostają do wysłania.', 'err');
   }
 }
 
 async function exportPendingToSheets(url, options = {}) {
-  // Eksportuje tylko wpisy z exported=false.
-  // Po sukcesie ustawia exported=true.
-  const markExported = options.markExported !== false;
-  const quietNoPending = options.quietNoPending === true;
-  const pending = state.history.filter(h => h.exported === false);
-  if (pending.length === 0) {
-    if (!quietNoPending) showToast('Brak nowych wpisów do wysłania', 'ok');
-    return true;
+  if (historySyncInFlight) {
+    showToast('Synchronizacja już trwa. Wpisy pozostają do wysłania.', 'err');
+    return false;
   }
-
-  // Buduj pełne wiersze z numerem itp. dla TYCH wpisów (numerujemy całość)
-  const fullRows = buildHistoryRows();
-  const pendingDates = new Set(pending.map(h => h.date));
-  const rowsToSend = fullRows.filter(r => pendingDates.has(r.date));
-
+  historySyncInFlight = true;
   try {
+    if (!isAppsScriptUrl(url)) throw new Error('Skonfiguruj poprawny adres Apps Script');
+    if (state.historySource?.dataset !== HISTORY_DATASET) {
+      throw new Error('Najpierw pobierz historię z nowego arkusza (strzałka ↓ obok BR)');
+    }
+    const pending = state.history.filter(h => h.exported === false);
+    if (!pending.length) {
+      if (!options.quietNoPending) showToast('Brak nowych wpisów do wysłania', 'ok');
+      return true;
+    }
+    const snapshots = validateHistoryRows(pending);
+    const dates = new Set(snapshots.map(h => h.date));
+    const rowsToSend = buildHistoryRows().filter(r => dates.has(r.date));
+    // Lokalny zapis jest wymagany przed wysyłką; opaque POST nie jest potwierdzeniem.
+    if (!saveState()) throw new Error('Nie udało się zapisać oczekujących wyników');
     await fetch(url, {
       method: 'POST',
       mode: 'no-cors',
@@ -2446,16 +2467,31 @@ async function exportPendingToSheets(url, options = {}) {
         rows: rowsToSend
       })
     });
-    if (markExported) {
-      state.history.forEach(h => {
-        if (pendingDates.has(h.date)) h.exported = true;
-      });
-      saveState();
+    let verified = [];
+    for (let attempt = 0; attempt < 2; attempt++) {
+      verified = await readRowsFromSheets(url);
+      if (snapshots.every(h => verified.some(r => sameWorkoutEntry(r, h)))) break;
+      if (attempt === 0) await wait(HISTORY_SYNC_VERIFY_RETRY_MS);
+    }
+    if (!snapshots.every(h => verified.some(r => sameWorkoutEntry(r, h)))) {
+      throw new Error('Arkusz nie potwierdził wszystkich wysłanych wyników');
+    }
+    if ((localStorage.getItem(LS_APPSCRIPT) || '').trim() !== url) {
+      throw new Error('Adres zmienił się podczas synchronizacji; wyniki niepotwierdzone');
+    }
+    const acknowledged = state.history.filter(h => h.exported === false &&
+      snapshots.some(r => sameWorkoutEntry(r, h)));
+    acknowledged.forEach(h => { h.exported = true; });
+    if (!saveState()) {
+      acknowledged.forEach(h => { h.exported = false; });
+      throw new Error('Nie udało się zapisać potwierdzenia');
     }
     return true;
   } catch (e) {
-    console.warn('export error', e);
+    showToast(e.message, 'err');
     return false;
+  } finally {
+    historySyncInFlight = false;
   }
 }
 
@@ -2466,43 +2502,42 @@ async function importFromSheets() {
     return;
   }
 
+  if (historySyncInFlight) {
+    showToast('Poczekaj na zakończenie synchronizacji', 'err');
+    return;
+  }
+  historySyncInFlight = true;
   showToast('Pobieranie z arkusza…', 'ok');
-
-  // Apps Script doGet zwraca dane jako JSON. Tu zakładamy że skrypt
-  // został rozszerzony o doGet zwracający pełną historię.
   try {
-    const resp = await fetch(url + '?action=read', { method: 'GET' });
-    if (!resp.ok) throw new Error('HTTP ' + resp.status);
-    const text = await resp.text();
-    let data;
-    try { data = JSON.parse(text); }
-    catch (e) { throw new Error('Niepoprawny JSON z arkusza'); }
-
-    if (!data || !Array.isArray(data.rows)) {
-      throw new Error('Brak pola rows w odpowiedzi');
+    if (!isAppsScriptUrl(url)) throw new Error('Niepoprawny adres Apps Script');
+    const rows = await readRowsFromSheets(url);
+    if (!rows.length) throw new Error('Arkusz pusty — anulowano');
+    if ((localStorage.getItem(LS_APPSCRIPT) || '').trim() !== url) {
+      throw new Error('Adres zmienił się podczas pobierania; anulowano');
     }
-
-    // Mapowanie: { date, duration, ... } → state.history
-    const newHistory = data.rows
-      .filter(r => r.date && /^\d{4}-\d{2}-\d{2}$/.test(r.date))
-      .map(r => ({
-        date: r.date,
-        duration: r.duration || '00:00',
-        exported: true   // import → wszystkie znaczniki na true
-      }));
-
-    if (newHistory.length === 0) {
-      showToast('Arkusz pusty — anulowano', 'err');
-      return;
-    }
-
+    // Arkusz rozstrzyga historię do swojej najnowszej daty. Zachowaj faktycznie
+    // zakończone, niewysłane nowsze treningi, także powstałe podczas pobierania.
+    const pendingNewer = state.history.filter(h => h.exported === false && h.date > rows[0].date);
+    validateHistoryRows(pendingNewer);
+    const newHistory = [
+      ...rows.map(h => ({ ...h, exported: true })),
+      ...pendingNewer
+    ].sort((a, b) => b.date.localeCompare(a.date));
+    const previousHistory = state.history;
+    const previousSource = state.historySource;
     state.history = newHistory;
-    saveState();
+    state.historySource = { dataset: HISTORY_DATASET };
+    if (!saveState()) {
+      state.history = previousHistory;
+      state.historySource = previousSource;
+      throw new Error('Odzyskanej historii nie udało się zapisać');
+    }
     renderHome();
     showToast(`Zaimportowano ${newHistory.length} wpisów ✓`, 'ok');
   } catch (e) {
-    console.warn('import error', e);
     showToast('Import nieudany: ' + e.message, 'err');
+  } finally {
+    historySyncInFlight = false;
   }
 }
 
@@ -2611,6 +2646,26 @@ document.getElementById('btnImportSheets').addEventListener('click', () => {
 });
 
 // --- Wersja — 3× klik = konfiguracja URL ---
+function updateAppsScriptUrl(nextUrl) {
+  if (historySyncInFlight) {
+    showToast('Poczekaj na zakończenie synchronizacji', 'err');
+    return;
+  }
+  const previousUrl = localStorage.getItem(LS_APPSCRIPT) || '';
+  const previousSource = state.historySource;
+  try {
+    localStorage.setItem(LS_APPSCRIPT, nextUrl);
+    if (localStorage.getItem(LS_APPSCRIPT) !== nextUrl) throw new Error('Zapis adresu niepotwierdzony');
+    if (previousUrl.trim() !== nextUrl) state.historySource = null;
+    if (!saveState()) throw new Error('Zapis ustawień niepotwierdzony');
+    showToast(nextUrl ? 'URL zapisany ✓. Pobierz historię: strzałka ↓ obok BR.' : 'URL wyczyszczony', 'ok');
+  } catch (e) {
+    state.historySource = previousSource;
+    try { localStorage.setItem(LS_APPSCRIPT, previousUrl); } catch (ignored) { /* Nie kasuj istniejącego adresu. */ }
+    showToast('Nie udało się zapisać ustawień. Nie czyść danych Chrome.', 'err');
+  }
+}
+
 let versionTaps = 0;
 let versionTapTimer = null;
 document.getElementById('versionTag').addEventListener('click', () => {
@@ -2622,8 +2677,14 @@ document.getElementById('versionTag').addEventListener('click', () => {
     const current = localStorage.getItem(LS_APPSCRIPT) || '';
     const v = prompt('URL Google Apps Script (Web App, kończy się na /exec):', current);
     if (v !== null) {
-      localStorage.setItem(LS_APPSCRIPT, v.trim());
-      showToast(v.trim() ? 'URL zapisany ✓' : 'URL wyczyszczony', 'ok');
+      const nextUrl = v.trim();
+      if (!nextUrl) {
+        showConfirm('Wyczyścić adres?', 'Synchronizacja przestanie działać. Historia i trening pozostaną bez zmian.', () => updateAppsScriptUrl(''));
+      } else if (!isAppsScriptUrl(nextUrl)) {
+        showToast('Niepoprawny adres. Użyj adresu HTTPS Apps Script kończącego się na /exec.', 'err');
+      } else {
+        updateAppsScriptUrl(nextUrl);
+      }
     }
   }
 });
@@ -3010,3 +3071,7 @@ if (state.current?.startedAt) {
 renderHome();
 showScreen('screen-home');
 setButtonMode('green');
+
+if (state.historySource?.dataset !== HISTORY_DATASET) {
+  showToast('Odzyskaj historię: ustaw nowy URL (3× wersja), następnie kliknij ↓ obok BR. Nie czyść danych Chrome.', 'ok');
+}
