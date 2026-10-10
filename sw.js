@@ -1,21 +1,21 @@
 // SIŁKA 3 — Service Worker
-const CACHE_NAME = 'silka3-vGPT_1.6.2';
+const CACHE_NAME = 'silka3-vGPT_1.7.0';
 const CORE_ASSETS = [
   './',
   './index.html',
-  './styles.css?v=vGPT_1.6.2',
-  './app.js?v=vGPT_1.6.2',
+  './styles.css?v=vGPT_1.7.0',
+  './app.js?v=vGPT_1.7.0',
   './manifest.json',
   './icon-192.png',
   './icon-512.png',
   './icon-maskable-512.png',
   './Photos/Bateria.png',
-  './Photos/8.jpg?v=vGPT_1.6.2',
-  './Photos/11.jpg?v=vGPT_1.6.2',
-  './Photos/14.jpg?v=vGPT_1.6.2',
-  './Photos/16.jpg?v=vGPT_1.6.2',
-  './Photos/17.jpg?v=vGPT_1.6.2',
-  './Photos/18.jpg?v=vGPT_1.6.2',
+  './Photos/8.jpg?v=vGPT_1.7.0',
+  './Photos/11.jpg?v=vGPT_1.7.0',
+  './Photos/14.jpg?v=vGPT_1.7.0',
+  './Photos/16.jpg?v=vGPT_1.7.0',
+  './Photos/17.jpg?v=vGPT_1.7.0',
+  './Photos/18.jpg?v=vGPT_1.7.0',
   'https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Orbitron:wght@500;700;900&display=swap'
 ];
 

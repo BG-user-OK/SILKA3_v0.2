@@ -5,7 +5,7 @@
 // ---------------------------------------------------------------
 // 0. WERSJA APLIKACJI
 // ---------------------------------------------------------------
-const APP_VERSION = 'vGPT_1.6.2';
+const APP_VERSION = 'vGPT_1.7.0';
 
 // Wersjonowane wyłącznie grafiki podmienione w tej wersji. Dzięki temu PWA
 // pobiera je pod nowym adresem, nawet gdy poprzedni plik był już w cache.
@@ -682,6 +682,93 @@ function sortedHistoryDesc() {
   return [...state.history].sort((a,b) => b.date.localeCompare(a.date));
 }
 
+// Wskaźniki są wyłącznie pochodną historii; nie zapisują hipotetycznych treningów.
+function goalCalendarDay(iso) {
+  if (typeof iso !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) return null;
+  const ms = Date.parse(`${iso}T00:00:00Z`);
+  if (!Number.isFinite(ms) || new Date(ms).toISOString().slice(0, 10) !== iso) return null;
+  return ms / 86400000;
+}
+
+function calculateGoalProgress(history, anchorISO = todayISO()) {
+  const today = goalCalendarDay(anchorISO);
+  const targetWorkouts = 2 * 90 / 7;
+  const result = { count: 0, targetWorkouts, frequency: null, amount: 0,
+    averageBreak: null, hypothetical: false, lastBreak: null, warning: '' };
+  if (today === null) return { ...result, amount: null, warning: 'Niepoprawna data dzisiejsza' };
+  const days = [];
+  const seen = new Set();
+  for (const entry of history) {
+    const day = goalCalendarDay(entry?.date);
+    // Pusta długość nie potwierdza ukończenia (np. ręcznie dodany planowany wpis).
+    const duration = typeof entry?.duration === 'string' ? entry.duration.trim() : '';
+    if (entry?.planned || day === null || day < today - 89 || day > today ||
+        !/^\d{1,2}:\d{2}$/.test(duration) || Number(duration.split(':')[1]) > 59) continue;
+    if (seen.has(day)) {
+      return { ...result, amount: null, warning: 'Powtórzone daty w historii — wskaźniki niedostępne' };
+    }
+    seen.add(day);
+    days.push(day);
+  }
+  days.sort((a, b) => a - b);
+  result.count = days.length;
+  result.amount = days.length / targetWorkouts * 100;
+  if (!days.length) return result;
+  result.lastBreak = today - days[days.length - 1];
+  // Po 1–2 dniach tylko ukończone treningi; od 3. dnia dodaj dziś do samej częstotliwości.
+  if (result.lastBreak > 2) {
+    days.push(today);
+    result.hypothetical = true;
+  }
+  if (days.length >= 2) {
+    result.averageBreak = (days[days.length - 1] - days[0]) / (days.length - 1);
+    result.frequency = 3.5 / result.averageBreak * 100;
+  }
+  return result;
+}
+
+function goalScoreBand(score) {
+  if (score === null || !Number.isFinite(score)) return 'unknown';
+  if (score >= 100) return 'green';
+  if (score >= 95) return 'yellow';
+  if (score >= 90) return 'orange';
+  return 'red';
+}
+
+function goalScoreText(score) {
+  if (score === null || !Number.isFinite(score)) return '—';
+  // Nie zaokrąglaj np. 99.99% do zielonego progu 100%.
+  return `${(Math.floor((score + 1e-9) * 10) / 10).toFixed(1).replace(/\.0$/, '').replace('.', ',')}%`;
+}
+
+function renderGoalProgress(history = state.history) {
+  const progress = calculateGoalProgress(history);
+  const summary = progress.warning || `Ostatnie 90 dni: ${progress.count} ukończonych treningów. ` +
+    `Cel ilości: 2 tygodniowo (${progress.targetWorkouts.toFixed(2).replace('.', ',')} na 90 dni).`;
+  for (const [name, score, explanation] of [
+    ['Frequency', progress.frequency, progress.warning ||
+      (progress.averageBreak === null ? 'Za mało danych do obliczenia średniej przerwy.' :
+        `Średnia przerwa: ${progress.averageBreak.toFixed(2).replace('.', ',')} dni; cel: 3,5 dnia.`) +
+      (progress.hypothetical ? ` Uwzględniono hipotetyczny trening dziś, po ${progress.lastBreak} dniach przerwy. Nie jest zapisany w historii.` :
+        ' Uwzględniono wyłącznie ukończone treningi.')],
+    ['Amount', progress.amount, summary]
+  ]) {
+    const row = document.getElementById(`goal${name}`);
+    const fill = row.querySelector('.goal-progress__fill');
+    const value = row.querySelector('.goal-progress__value');
+    const bar = row.querySelector('[role="progressbar"]');
+    const text = goalScoreText(score);
+    const width = score === null || !Number.isFinite(score) ? 0 : Math.max(0, Math.min(100, score));
+    row.dataset.band = goalScoreBand(score);
+    row.title = explanation;
+    fill.style.width = `${width}%`;
+    value.textContent = text;
+    bar.setAttribute('aria-valuenow', String(width));
+    bar.setAttribute('aria-valuetext', `${text}. ${explanation}`);
+  }
+  document.getElementById('goalProgress').title = summary;
+}
+
 function buildTrainingNumbers(list) {
   const byYear = {};
   const result = new Array(list.length);
@@ -870,7 +957,8 @@ document.getElementById('btnPackCancel').addEventListener('click', () => {
 
 function renderHome() {
   // Wersja
-  document.getElementById('versionTag').textContent = APP_VERSION;
+  document.getElementById('versionTag').textContent = APP_VERSION.replace('vGPT_', 'v ');
+  renderGoalProgress();
   updateBagIndicator();
 
   // Punkt 25 — obrazek fotokoniec.jpg gdy dziś już jest trening
@@ -3075,3 +3163,8 @@ setButtonMode('green');
 if (state.historySource?.dataset !== HISTORY_DATASET) {
   showToast('Odzyskaj historię: ustaw nowy URL (3× wersja), następnie kliknij ↓ obok BR. Nie czyść danych Chrome.', 'ok');
 }
+
+// Odśwież dzień odniesienia po powrocie do apki, bez zmiany historii/treningu.
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && !historyEditMode) renderGoalProgress();
+});
