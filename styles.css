@@ -1,5 +1,5 @@
 /* ===========================================================
-   SIŁKA 3 — stylizacja vGPT_1.7.0
+   SIŁKA 3 — stylizacja vGPT_1.8.0
    =========================================================== */
 
 *,
@@ -227,10 +227,6 @@ input { font-family: inherit; }
   color: var(--text);
   flex: 0 0 auto;
 }
-.history-title span {
-  color: var(--green-glow);
-  text-shadow: 0 0 12px rgba(57,255,124,0.5);
-}
 
 /* Wersja — przygaszona ale CZYTELNA */
 .version-tag {
@@ -246,18 +242,25 @@ input { font-family: inherit; }
   user-select: none;
 }
 
-.goal-progress { min-width: 0; display: grid; gap: 7px; }
+.goal-progress {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(64px, 1fr) auto;
+  gap: 7px 8px;
+  align-items: center;
+}
 .goal-progress__row {
   --goal-color: var(--text-dim);
   display: grid;
-  grid-template-columns: 34px minmax(20px, 1fr) 45px;
+  grid-template-columns: 34px minmax(20px, 1fr);
+  grid-column: 1;
   align-items: center;
   gap: 4px;
 }
-.goal-progress__row[data-band="green"] { --goal-color: var(--green-glow); }
-.goal-progress__row[data-band="yellow"] { --goal-color: var(--yellow); }
-.goal-progress__row[data-band="orange"] { --goal-color: var(--orange); }
-.goal-progress__row[data-band="red"] { --goal-color: var(--red-glow); }
+.goal-progress [data-band="green"] { --goal-color: var(--green-glow); }
+.goal-progress [data-band="yellow"] { --goal-color: var(--yellow); }
+.goal-progress [data-band="orange"] { --goal-color: var(--orange); }
+.goal-progress [data-band="red"] { --goal-color: var(--red-glow); }
 .goal-progress__label { font-size: 10px; font-weight: 700; color: var(--text-dim); }
 .goal-progress__track {
   height: 9px;
@@ -267,9 +270,12 @@ input { font-family: inherit; }
   overflow: hidden;
 }
 .goal-progress__fill { display: block; height: 100%; width: 0; background: var(--goal-color); }
-.goal-progress__value {
+.goal-combined {
+  --goal-color: var(--text-dim);
+  grid-column: 2;
+  grid-row: 1 / 3;
   color: var(--goal-color);
-  font-size: 14px;
+  font-size: clamp(22px, 6vw, 28px);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   text-align: right;

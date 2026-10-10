@@ -5,7 +5,7 @@
 // ---------------------------------------------------------------
 // 0. WERSJA APLIKACJI
 // ---------------------------------------------------------------
-const APP_VERSION = 'vGPT_1.7.0';
+const APP_VERSION = 'vGPT_1.8.0';
 
 // Wersjonowane wyłącznie grafiki podmienione w tej wersji. Dzięki temu PWA
 // pobiera je pod nowym adresem, nawet gdy poprzedni plik był już w cache.
@@ -741,6 +741,14 @@ function goalScoreText(score) {
   return `${(Math.floor((score + 1e-9) * 10) / 10).toFixed(1).replace(/\.0$/, '').replace('.', ',')}%`;
 }
 
+function combinedGoalScore(progress) {
+  if (progress.warning) return null;
+  if (progress.amount === 0) return 0;
+  const { frequency, amount } = progress;
+  if (!Number.isFinite(frequency) || !Number.isFinite(amount) || frequency < 0 || amount < 0) return null;
+  return Math.sqrt(frequency * amount);
+}
+
 function renderGoalProgress(history = state.history) {
   const progress = calculateGoalProgress(history);
   const summary = progress.warning || `Ostatnie 90 dni: ${progress.count} ukończonych treningów. ` +
@@ -755,18 +763,24 @@ function renderGoalProgress(history = state.history) {
   ]) {
     const row = document.getElementById(`goal${name}`);
     const fill = row.querySelector('.goal-progress__fill');
-    const value = row.querySelector('.goal-progress__value');
     const bar = row.querySelector('[role="progressbar"]');
     const text = goalScoreText(score);
     const width = score === null || !Number.isFinite(score) ? 0 : Math.max(0, Math.min(100, score));
     row.dataset.band = goalScoreBand(score);
     row.title = explanation;
     fill.style.width = `${width}%`;
-    value.textContent = text;
     bar.setAttribute('aria-valuenow', String(width));
     bar.setAttribute('aria-valuetext', `${text}. ${explanation}`);
   }
   document.getElementById('goalProgress').title = summary;
+  const combined = combinedGoalScore(progress);
+  const combinedEl = document.getElementById('goalCombined');
+  const combinedText = goalScoreText(combined);
+  combinedEl.textContent = combinedText;
+  combinedEl.dataset.band = goalScoreBand(combined);
+  combinedEl.setAttribute('aria-label', `Łączna realizacja celów: ${combinedText}`);
+  combinedEl.title = progress.warning || (combined === null ? 'Za mało danych do obliczenia łącznego wyniku.' :
+    `Łączna realizacja: średnia geometryczna częstotliwości i ilości. ${summary}`);
 }
 
 function buildTrainingNumbers(list) {

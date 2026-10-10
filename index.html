@@ -13,7 +13,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Orbitron:wght@500;700;900&display=swap" />
-  <link rel="stylesheet" href="styles.css?v=vGPT_1.7.0" />
+  <link rel="stylesheet" href="styles.css?v=vGPT_1.8.0" />
   <title>SIŁKA 3</title>
 </head>
 <body>
@@ -36,8 +36,8 @@
       <div class="history-wrap">
         <div class="history-toolbar">
           <div class="history-brand">
-            <h1 class="history-title">SIŁKA <span>3</span></h1>
-            <span class="version-tag" id="versionTag">v 1.7.0</span>
+            <h1 class="history-title">SIŁKA</h1>
+            <span class="version-tag" id="versionTag">v 1.8.0</span>
           </div>
           <div class="goal-progress" id="goalProgress" aria-label="Realizacja celów z ostatnich 90 dni">
             <div class="goal-progress__row" id="goalFrequency" data-band="unknown">
@@ -45,15 +45,14 @@
               <div class="goal-progress__track" role="progressbar" aria-label="Częstotliwość" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
                 <span class="goal-progress__fill"></span>
               </div>
-              <span class="goal-progress__value">—</span>
             </div>
             <div class="goal-progress__row" id="goalAmount" data-band="red">
               <span class="goal-progress__label">ILOŚĆ</span>
               <div class="goal-progress__track" role="progressbar" aria-label="Ilość" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
                 <span class="goal-progress__fill"></span>
               </div>
-              <span class="goal-progress__value">0%</span>
             </div>
+            <output class="goal-combined" id="goalCombined" data-band="unknown" aria-label="Łączna realizacja celów">—</output>
           </div>
           <button class="bag-indicator" id="bagIndicator" aria-label="Status pakowania" title="Kliknij aby zresetować pakowanie">🎒</button>
           <div class="edit-actions" id="editActions" hidden>
@@ -369,6 +368,6 @@
 
   </div>
 
-  <script src="app.js?v=vGPT_1.7.0"></script>
+  <script src="app.js?v=vGPT_1.8.0"></script>
 </body>
 </html>
