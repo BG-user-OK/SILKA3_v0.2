@@ -5,7 +5,7 @@
 // ---------------------------------------------------------------
 // 0. WERSJA APLIKACJI
 // ---------------------------------------------------------------
-const APP_VERSION = 'vGPT_1.8.0';
+const APP_VERSION = 'vGPT_1.8.1';
 
 // Wersjonowane wyłącznie grafiki podmienione w tej wersji. Dzięki temu PWA
 // pobiera je pod nowym adresem, nawet gdy poprzedni plik był już w cache.
@@ -1518,36 +1518,80 @@ let restPercentFrame = null;
 let restPercentStartMs = 0;
 let restPercentDurationMs = REST_SECONDS * 1000;
 let restDisplayedPercent = null;
+let restPercentValue = 0;
+let restPercentGeometry = null;
+const restPercentReelStates = {};
 
 function setRestChargePercent(value, animate = true) {
-  const percentEl = document.getElementById('restChargePercent');
-  if (!percentEl) return;
-
-  const nextValue = Math.min(100, Math.max(0, Math.round(value)));
-  if (restDisplayedPercent === nextValue && percentEl.querySelector('.rest-charge__percent-value.is-current')) return;
-
-  const next = document.createElement('span');
-  next.className = 'rest-charge__percent-value is-current';
-  next.textContent = `${nextValue}%`;
-
-  percentEl.querySelectorAll('.rest-charge__percent-value.is-exit').forEach(el => el.remove());
-  const current = percentEl.querySelector('.rest-charge__percent-value.is-current');
-
-  if (!animate || !current) {
-    percentEl.replaceChildren(next);
-    restDisplayedPercent = nextValue;
-    return;
+  const roller = document.getElementById('restChargeRoller');
+  const accessible = document.getElementById('restChargePercentValue');
+  if (!roller || !accessible) return;
+  const percent = Math.min(100, Math.max(0, Number(value) || 0));
+  restPercentValue = percent;
+  const whole = Math.floor(percent);
+  if (restDisplayedPercent !== whole) {
+    accessible.textContent = `${whole}%`;
+    restDisplayedPercent = whole;
   }
-
-  current.classList.remove('is-current', 'is-enter');
-  current.classList.add('is-exit');
-  current.addEventListener('animationend', () => current.remove(), { once: true });
-
-  next.classList.add('is-enter');
-  next.addEventListener('animationend', () => next.classList.remove('is-enter'), { once: true });
-  percentEl.appendChild(next);
-  restDisplayedPercent = nextValue;
+  if (!animate) restPercentGeometry = null;
+  const h = roller.clientHeight, w = roller.clientWidth;
+  if (!h || !w) return;
+  const digitH = Math.round(Math.min(h * 0.6, w * 0.9));
+  const resized = !restPercentGeometry || restPercentGeometry.h !== h || restPercentGeometry.w !== w;
+  if (resized) {
+    // Pompki renderRest geometry/color boundary; only the three-column size is adapted.
+    roller.style.fontSize = `${Math.floor(Math.min(digitH * 0.95, w / (3 * 0.64)))}px`;
+    const font = getComputedStyle(roller), context = document.createElement('canvas').getContext('2d');
+    if (context) context.font = `900 ${font.fontSize} ${font.fontFamily}`;
+    const metrics = context ? context.measureText('0123456789') : {};
+    const baseline = (metrics.fontBoundingBoxAscent - metrics.fontBoundingBoxDescent) / 2;
+    const inkBottom = baseline + metrics.actualBoundingBoxDescent;
+    const colorOffset = Math.min(digitH / 2, (Number.isFinite(inkBottom) ? inkBottom : parseFloat(font.fontSize) * 0.4) + 2) / digitH;
+    restPercentGeometry = { h, w, colorOffset };
+  }
+  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const fraction = reduced ? 0 : percent - whole;
+  const carry = whole % 10 === 9 ? fraction : 0;
+  function positionReel(id, position, kind) {
+    const inner = document.getElementById(id), previous = restPercentReelStates[id];
+    const edge = percent === 100 ? 'end' : whole === 0 ? 'start' : 'count';
+    inner.parentElement.style.visibility = kind === 'hundreds' && percent < 99 || kind === 'tens' && percent < 9 ? 'hidden' : 'visible';
+    if (!resized && previous?.position === position && previous.edge === edge) return;
+    if (!inner.childElementCount) {
+      const rows = document.createDocumentFragment(), last = kind === 'ones' ? 12 : kind === 'tens' ? 11 : 2;
+      for (let digit = 0; digit <= last; digit++) {
+        const row = document.createElement('div'); row.className = 'rest-charge__digit';
+        const text = kind === 'ones' ? (digit + 9) % 10 : kind === 'tens' ? digit === 0 || digit === 11 ? '' : digit % 10 : digit === 1 ? '1' : '';
+        for (const name of ['base', 'elapsed']) {
+          const label = document.createElement('span'); label.className = `rest-charge__digit-label rest-charge__digit-${name}`;
+          label.textContent = text; row.append(label);
+        }
+        rows.append(row);
+      }
+      inner.append(rows);
+    }
+    if (resized) for (const row of inner.children) row.style.height = `${digitH}px`;
+    // Same cyclic tape transform and position-clipped two-color layers as Pompki.
+    inner.style.transform = `translateY(${h / 2 - digitH / 2 - position * digitH}px)`;
+    for (let index = 0; index < inner.children.length; index++) {
+      const row = inner.children[index], label = row.lastElementChild;
+      row.style.visibility = kind === 'ones' && (edge === 'start' && index === 0 || edge === 'end' && index !== 1) ? 'hidden' : '';
+      const bottom = 100 - Math.max(0, Math.min(1, position + 0.5 + restPercentGeometry.colorOffset - index)) * 100;
+      const clip = `inset(0 0 ${bottom.toFixed(4)}% 0)`;
+      if (label._restClip !== clip) {
+        label.style.clipPath = clip; label.style.webkitClipPath = clip; label._restClip = clip;
+      }
+    }
+    restPercentReelStates[id] = { position, edge };
+  }
+  positionReel('restChargeHundredsTape', Math.floor(whole / 100) + (whole === 99 ? fraction : 0), 'hundreds');
+  positionReel('restChargeTensTape', Math.floor(whole / 10) + carry, 'tens');
+  positionReel('restChargeOnesTape', whole % 10 + 1 + fraction, 'ones');
 }
+
+window.addEventListener('resize', () => {
+  if (!document.getElementById('restOverlay').hidden) setRestChargePercent(restPercentValue);
+});
 
 function renderRestChargeSetDots() {
   const dotsEl = document.getElementById('restChargeSets');
@@ -1566,7 +1610,7 @@ function renderRestChargeSetDots() {
 }
 
 function stopRestPercentAnimation(finalPercent = null) {
-  if (restPercentFrame) {
+  if (restPercentFrame !== null) {
     cancelAnimationFrame(restPercentFrame);
     restPercentFrame = null;
   }
@@ -1581,7 +1625,7 @@ function startRestPercentAnimation(seconds) {
 
   const frame = now => {
     const elapsedMs = Math.max(0, now - restPercentStartMs);
-    const percent = Math.min(100, Math.floor((elapsedMs / restPercentDurationMs) * 100));
+    const percent = Math.min(100, (elapsedMs / restPercentDurationMs) * 100);
     setRestChargePercent(percent);
 
     if (elapsedMs < restPercentDurationMs) {
