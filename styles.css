@@ -1,5 +1,5 @@
 /* ===========================================================
-   SIŁKA 3 — stylizacja vGPT_1.9.1
+   SIŁKA 3 — stylizacja vGPT_1.9.2
    =========================================================== */
 
 *,
@@ -514,21 +514,12 @@ input { font-family: inherit; }
 /* Pierwszy wiersz dzisiejszy planowany — wyraźne żółte tło */
 .history-table tbody tr.row-planned td {
   background: rgba(251,191,36,0.22);
-  color: #fff7d1;
+  /* Override metric colors, including inline styles, only for this assumed row. */
+  color: #ffe47a !important;
 }
 .history-table tbody tr.row-planned td.col-date,
 .history-table tbody tr.row-planned td.col-dow {
-  color: #ffe47a;
   font-weight: 700;
-}
-.history-table tbody tr.row-planned td.col-break,
-.history-table tbody tr.row-planned td.col-3m {
-  color: #fff7d1;
-}
-.history-table tbody tr.row-planned td.col-num,
-.history-table tbody tr.row-planned td.col-duration,
-.history-table tbody tr.row-planned td.col-br {
-  color: rgba(255,240,180,0.55);
 }
 
 /* Wiersz dzisiejszy ukończony — świecąco zielony */
