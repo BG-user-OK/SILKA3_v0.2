@@ -5,7 +5,7 @@
 // ---------------------------------------------------------------
 // 0. WERSJA APLIKACJI
 // ---------------------------------------------------------------
-const APP_VERSION = 'vGPT_1.9.0';
+const APP_VERSION = 'vGPT_1.9.1';
 
 // Wersjonowane wyłącznie grafiki podmienione w tej wersji. Dzięki temu PWA
 // pobiera je pod nowym adresem, nawet gdy poprzedni plik był już w cache.
@@ -793,8 +793,7 @@ function buildHistoricalGoalScores(history) {
     const progress = calculateGoalProgress(history, entry.date);
     const score = combinedGoalScore(progress);
     const estimated = score !== null && goalCalendarDay(entry.date) - firstDay < 89;
-    const formatted = goalScoreText(score).replace('%', '');
-    const number = formatted === '—' || formatted.includes(',') ? formatted : `${formatted},0`;
+    const number = score === null || !Number.isFinite(score) ? '—' : String(Math.round(score));
     const text = `${estimated ? '~' : ''}${number}`;
     const title = progress.warning || (score === null ? 'Za mało ukończonych treningów w oknie 90 dni.' :
       `Realizacja celu na ${entry.date}: ${number}%.` +
@@ -802,6 +801,17 @@ function buildHistoricalGoalScores(history) {
     scores.set(entry.date, { score, text, band: goalScoreBand(score), title });
   }
   return scores;
+}
+
+function buildProjectedGoalScore(history, anchorISO = todayISO()) {
+  const completedToday = history.some(entry => entry?.date === anchorISO &&
+    calculateGoalProgress([entry], anchorISO).count === 1);
+  if (completedToday) return null;
+  // An in-memory assumption only. 00:00 satisfies the existing completed-entry
+  // filter; no duration is predicted and nothing is added to saved/exported history.
+  const projected = buildHistoricalGoalScores([...history, { date: anchorISO, duration: '00:00' }]).get(anchorISO);
+  return projected ? { ...projected, projected: true,
+    title: `Prognoza przy założeniu ukończenia treningu dzisiaj; nie jest zapisana w historii. ${projected.title}` } : null;
 }
 
 function buildTrainingNumbers(list) {
@@ -1016,6 +1026,7 @@ function renderHome() {
   const hist = sortedHistoryDesc();
   const todayDone = hist.some(h => h.date === today);
   const historicalGoals = buildHistoricalGoalScores(hist);
+  const projectedGoal = buildProjectedGoalScore(hist, today);
 
   const displayList = todayDone
     ? hist
@@ -1114,7 +1125,8 @@ function renderHome() {
     const aBColor = avgColor(aBraw, getPrevAB, spanBR, 365);
     const numCell = historySyncCellHtml(h, idx, num);
     const historicalGoal = !h.planned && historicalGoals.get(h.date);
-    const goalCell = historicalGoal || { text: '—', band: 'unknown', title: 'Wynik dotyczy wyłącznie ukończonego treningu.' };
+    const goalCell = (h.date === today && projectedGoal) || historicalGoal ||
+      { text: '—', band: 'unknown', title: 'Wynik dotyczy wyłącznie ukończonego treningu.' };
 
     tr.innerHTML = `
       <td class="col-num">${numCell}</td>
@@ -1123,7 +1135,7 @@ function renderHome() {
       <td class="col-duration">${durText}</td>
       <td class="col-break" style="${breakColor}">${breakText}</td>
       <td class="col-3m"    style="${a3Color}">${a3}</td>
-      <td class="col-goal" data-band="${goalCell.band}" title="${goalCell.title}" aria-label="${goalCell.title}">${goalCell.text}</td>
+      <td class="col-goal" data-band="${goalCell.band}" data-projected="${Boolean(goalCell.projected)}" title="${goalCell.title}" aria-label="${goalCell.title}">${goalCell.text}</td>
       <td class="col-br"    style="${aBColor}">${aB}</td>
     `;
     body.appendChild(tr);

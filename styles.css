@@ -1,5 +1,5 @@
 /* ===========================================================
-   SIŁKA 3 — stylizacja vGPT_1.9.0
+   SIŁKA 3 — stylizacja vGPT_1.9.1
    =========================================================== */
 
 *,
@@ -346,6 +346,7 @@ input { font-family: inherit; }
 .history-table td.col-goal[data-band="orange"] { color: var(--orange); }
 .history-table td.col-goal[data-band="red"] { color: var(--red-glow); }
 .history-table td.col-goal[data-band="unknown"] { color: var(--text-dim); }
+.history-table td.col-goal[data-projected="true"] { color: var(--yellow); }
 @media (max-width: 480px) {
   .history-table col.col-num { width: 9.5%; }
   .history-table col.col-date { width: 24%; }
