@@ -5,7 +5,7 @@
 // ---------------------------------------------------------------
 // 0. WERSJA APLIKACJI
 // ---------------------------------------------------------------
-const APP_VERSION = 'vGPT_1.8.1';
+const APP_VERSION = 'vGPT_1.9.0';
 
 // Wersjonowane wyłącznie grafiki podmienione w tej wersji. Dzięki temu PWA
 // pobiera je pod nowym adresem, nawet gdy poprzedni plik był już w cache.
@@ -783,6 +783,27 @@ function renderGoalProgress(history = state.history) {
     `Łączna realizacja: średnia geometryczna częstotliwości i ilości. ${summary}`);
 }
 
+// Display-only historical results; the same engine owns eligibility and scoring.
+function buildHistoricalGoalScores(history) {
+  const completed = history.filter(entry => calculateGoalProgress([entry], entry?.date).count === 1);
+  const firstDay = completed.reduce((first, entry) => Math.min(first, goalCalendarDay(entry.date)), Infinity);
+  const scores = new Map();
+  for (const entry of completed) {
+    if (scores.has(entry.date)) continue;
+    const progress = calculateGoalProgress(history, entry.date);
+    const score = combinedGoalScore(progress);
+    const estimated = score !== null && goalCalendarDay(entry.date) - firstDay < 89;
+    const formatted = goalScoreText(score).replace('%', '');
+    const number = formatted === '—' || formatted.includes(',') ? formatted : `${formatted},0`;
+    const text = `${estimated ? '~' : ''}${number}`;
+    const title = progress.warning || (score === null ? 'Za mało ukończonych treningów w oknie 90 dni.' :
+      `Realizacja celu na ${entry.date}: ${number}%.` +
+      (estimated ? ' ~ Początkowa historia nie obejmuje jeszcze pełnych 90 dni; cel pozostaje bez zmian.' : ' Ostatnie 90 dni, bez późniejszych treningów.'));
+    scores.set(entry.date, { score, text, band: goalScoreBand(score), title });
+  }
+  return scores;
+}
+
 function buildTrainingNumbers(list) {
   const byYear = {};
   const result = new Array(list.length);
@@ -994,6 +1015,7 @@ function renderHome() {
   const today = todayISO();
   const hist = sortedHistoryDesc();
   const todayDone = hist.some(h => h.date === today);
+  const historicalGoals = buildHistoricalGoalScores(hist);
 
   const displayList = todayDone
     ? hist
@@ -1034,6 +1056,7 @@ function renderHome() {
 
     const dateText = fmtDateShort(h.date);
     const dowText  = fmtDow(h.date);
+    const dowShort = ['ndz.', 'pon.', 'wt.', 'śr.', 'czw.', 'pt.', 'sob.'][fromISODate(h.date).getDay()];
     const durText  = h.duration ? h.duration.replace(/^0/, '') : '—';
 
     let breakText = '—';
@@ -1090,14 +1113,17 @@ function renderHome() {
     const a3Color = avgColor(a3raw, getPrevA3, span3M, 90);
     const aBColor = avgColor(aBraw, getPrevAB, spanBR, 365);
     const numCell = historySyncCellHtml(h, idx, num);
+    const historicalGoal = !h.planned && historicalGoals.get(h.date);
+    const goalCell = historicalGoal || { text: '—', band: 'unknown', title: 'Wynik dotyczy wyłącznie ukończonego treningu.' };
 
     tr.innerHTML = `
       <td class="col-num">${numCell}</td>
       <td class="col-date">${dateText}</td>
-      <td class="col-dow">${dowText}</td>
+      <td class="col-dow" aria-label="${dowText}" title="${dowText}"><span class="dow-full" aria-hidden="true">${dowText}</span><span class="dow-short" aria-hidden="true">${dowShort}</span></td>
       <td class="col-duration">${durText}</td>
       <td class="col-break" style="${breakColor}">${breakText}</td>
       <td class="col-3m"    style="${a3Color}">${a3}</td>
+      <td class="col-goal" data-band="${goalCell.band}" title="${goalCell.title}" aria-label="${goalCell.title}">${goalCell.text}</td>
       <td class="col-br"    style="${aBColor}">${aB}</td>
     `;
     body.appendChild(tr);

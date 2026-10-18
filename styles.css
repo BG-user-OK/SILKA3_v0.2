@@ -1,5 +1,5 @@
 /* ===========================================================
-   SIŁKA 3 — stylizacja vGPT_1.8.1
+   SIŁKA 3 — stylizacja vGPT_1.9.0
    =========================================================== */
 
 *,
@@ -321,8 +321,49 @@ input { font-family: inherit; }
 
 .history-table {
   width: 100%;
+  table-layout: fixed;
   border-collapse: collapse;
   font-family: 'Rajdhani', sans-serif;
+}
+.history-table col.col-num { width: 6%; }
+.history-table col.col-date { width: 18%; }
+.history-table col.col-dow { width: 20%; }
+.history-table col.col-duration { width: 10%; }
+.history-table col.col-break { width: 8%; }
+.history-table col.col-3m { width: 10%; }
+.history-table col.col-goal { width: 13%; }
+.history-table col.col-br { width: 15%; }
+.dow-short { display: none; }
+.history-table td.col-goal {
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.history-table th.col-goal { font-size: 11px; line-height: 1.1; color: #c4e8ff; }
+.history-table td.col-goal[data-band="green"] { color: var(--green-glow); }
+.history-table td.col-goal[data-band="yellow"] { color: var(--yellow); }
+.history-table td.col-goal[data-band="orange"] { color: var(--orange); }
+.history-table td.col-goal[data-band="red"] { color: var(--red-glow); }
+.history-table td.col-goal[data-band="unknown"] { color: var(--text-dim); }
+@media (max-width: 480px) {
+  .history-table col.col-num { width: 9.5%; }
+  .history-table col.col-date { width: 24%; }
+  .history-table col.col-dow { width: 9%; }
+  .history-table col.col-duration { width: 9.5%; }
+  .history-table col.col-break { width: 11%; }
+  .history-table col.col-3m { width: 12%; }
+  .history-table col.col-goal { width: 14%; }
+  .history-table col.col-br { width: 11%; }
+  .history-table thead th, .history-table tbody td { padding-left: 2px; padding-right: 2px; }
+  .history-table td.col-num { padding-left: 1px; padding-right: 1px; }
+  .history-table tbody td.col-date, .history-table tbody td.col-break { font-size: 12px; white-space: nowrap; }
+  .history-table tbody td.col-3m { font-size: 11px; }
+  .dow-full { display: none; }
+  .dow-short { display: inline; }
+}
+@media (max-width: 600px) {
+  .history-table .col-3m .th-content, .history-table .col-br .th-content { flex-direction: column; gap: 0; }
 }
 
 /* Nagłówek tabeli — jaśniejszy od wierszy danych, dobrze widoczny */
